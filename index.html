@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ca">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#07050f" />
+    <title>Totem of Happiness</title>
+    <meta name="description" content="El tòtem ha tornat i porta el seu compi algoritme per decidir el teu destí." />
+    <meta property="og:title" content="Totem of Happiness" />
+    <meta property="og:description" content="El tòtem ha tornat i porta el seu compi algoritme per decidir el teu destí." />
+    <meta property="og:image" content="https://totem-of-happiness.web.app/og.png?v=2" />
+    <meta property="og:url" content="https://totem-of-happiness.web.app/" />
+    <meta property="og:type" content="website" />
+    <link rel="icon" type="image/png" href="/brand/totem-silhouette.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Monoton&family=Press+Start+2P&family=Chakra+Petch:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // Aplica el darrer tema conegut abans de pintar res, per evitar el "flaix" del tema per defecte.
+      // (La clau ha de coincidir amb THEME_CACHE_KEY de src/ui/ThemeScope.tsx.)
+      try {
+        var vars = JSON.parse(localStorage.getItem('totem-theme-vars') || 'null');
+        if (vars) {
+          for (var k in vars) document.documentElement.style.setProperty(k, vars[k]);
+          if (vars['--bg']) document.querySelector('meta[name="theme-color"]').setAttribute('content', vars['--bg']);
+        }
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,465 @@
+/* Admin: desktop-first, sòbri, amb el mateix ADN visual */
+.admin {
+  --pattern-opacity: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  font-size: 15px;
+}
+.admin-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 24px;
+  background: var(--surface);
+  border-bottom: var(--border);
+}
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  white-space: nowrap;
+}
+.admin-nav {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.admin-nav a {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  color: var(--ink);
+  font-weight: 800;
+  text-decoration: none;
+}
+.admin-nav a:hover {
+  border-color: var(--line);
+}
+.admin-nav a[aria-current='page'] {
+  background: var(--primary);
+  color: var(--on-primary);
+  border-color: var(--stroke);
+}
+.admin-main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+}
+.admin-main h1 {
+  font-size: 2rem;
+}
+.admin-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.admin-banner {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border: 2px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+}
+.admin-banner.ok {
+  border-color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, var(--surface));
+}
+.admin-banner.warn {
+  border-color: #f0a030;
+  background: color-mix(in srgb, #f0a030 16%, var(--surface));
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.stat {
+  background: var(--surface);
+  border: 2px solid var(--stroke);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+.stat b {
+  display: block;
+  font-size: 1.7rem;
+  font-variant-numeric: tabular-nums;
+}
+.stat span {
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 2px solid var(--stroke);
+  border-radius: var(--radius-sm);
+}
+table.grid {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 900px;
+}
+.grid th,
+.grid td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+.grid th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.grid tr:hover td {
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+}
+.grid input.cell,
+.grid select.cell {
+  width: 100%;
+  min-height: 34px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+}
+.grid input.cell:hover,
+.grid select.cell:hover {
+  border-color: var(--line);
+}
+.grid input.cell:focus,
+.grid select.cell:focus {
+  border-color: var(--stroke);
+  background: var(--field);
+  outline: none;
+}
+.grid input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+}
+.status {
+  font-weight: 800;
+  white-space: nowrap;
+}
+.status.done {
+  color: var(--success);
+}
+.status.pending {
+  color: var(--muted);
+}
+.actions {
+  display: flex;
+  gap: 4px;
+  white-space: nowrap;
+}
+.icon-btn {
+  min-width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+.icon-btn:hover {
+  border-color: var(--stroke);
+}
+.icon-btn.copied {
+  background: color-mix(in srgb, var(--success) 40%, var(--field));
+}
+
+/* ---- Grups ---- */
+/* Tots els grups en una sola fila (scroll horitzontal si no hi caben) */
+.board {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(200px, 1fr);
+  gap: 14px;
+  align-items: start;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.group-col {
+  --group-color: var(--stroke);
+  background: var(--surface);
+  border: 3px solid var(--group-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+}
+.group-col.unassigned {
+  min-height: 0;
+  margin-bottom: 14px;
+  border-style: dashed;
+}
+.group-col.drop {
+  outline: 4px dashed var(--accent);
+  outline-offset: 2px;
+}
+.group-head {
+  padding: 8px 10px;
+  border-bottom: 2px solid var(--group-color);
+  border-radius: 12px 12px 0 0;
+  display: grid;
+  gap: 6px;
+  color: var(--ink);
+}
+.group-head input.name {
+  border: 0;
+  background: transparent;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  width: 100%;
+  color: var(--ink);
+  min-width: 0;
+}
+.group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.group-head .row {
+  gap: 6px;
+}
+/* Requadre amb el color del grup (és el selector de color) */
+.group-head input.group-swatch {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--group-color) 70%, transparent);
+}
+.group-head input.group-swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.group-head input.group-swatch::-webkit-color-swatch {
+  border: 0;
+  border-radius: 5px;
+}
+.group-head input.group-swatch::-moz-color-swatch {
+  border: 0;
+  border-radius: 5px;
+}
+.group-members {
+  padding: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+  align-content: flex-start;
+}
+.member {
+  cursor: grab;
+  user-select: none;
+  font-size: 0.9rem;
+  padding: 3px 10px;
+}
+.member:active {
+  cursor: grabbing;
+}
+.member.done::after {
+  content: '✓';
+  color: var(--success);
+}
+.group-count {
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+/* ---- Qüestionari ---- */
+.quiz-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 1000px) {
+  .quiz-layout {
+    grid-template-columns: 1fr;
+  }
+}
+.step-card {
+  background: var(--surface);
+  border: 2px solid var(--stroke);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.step-card header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.step-card .type {
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+.step-card .field {
+  margin-bottom: 8px;
+}
+.step-card .input,
+.step-card .select {
+  min-height: 38px;
+  border-width: 2px;
+  padding: 4px 8px;
+}
+.opt-row {
+  display: grid;
+  grid-template-columns: 60px 1fr 1fr 32px;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.opt-row.simple {
+  grid-template-columns: 1fr 32px;
+}
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* ---- Previsualització mòbil ---- */
+.phone {
+  width: 340px;
+  height: 640px;
+  border: 10px solid #1a1a1a;
+  border-radius: 40px;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  position: sticky;
+  top: 90px;
+  background: var(--bg);
+}
+.phone .theme-scope {
+  height: 100%;
+  overflow: auto;
+  background: var(--bg);
+  color: var(--ink);
+  position: relative;
+  isolation: isolate;
+  /* fa que els elements position:fixed (animació, confeti) quedin dins el mòbil */
+  transform: translateZ(0);
+}
+.phone .result {
+  min-height: 100%;
+}
+.phone .theme-scope::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(120% 55% at 50% 62%, color-mix(in srgb, var(--primary) 22%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--bg) 0%, var(--horizon) 60%, var(--bg) 61%);
+}
+.phone .screen {
+  min-height: 100%;
+}
+.swatches {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.swatch {
+  width: 46px;
+  height: 46px;
+  border: 2px solid var(--stroke);
+  border-radius: 8px;
+  display: grid;
+  place-items: end center;
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding-bottom: 2px;
+}
+
+.modal-back {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  padding: 16px;
+}
+.modal {
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  width: min(640px, 100%);
+  max-height: 90dvh;
+  overflow: auto;
+  padding: 20px;
+}
+.preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.6);
+  display: grid;
+  place-items: center;
+}
+.preview-overlay .phone {
+  position: relative;
+  top: 0;
+}
+.preview-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+
+/* ---- Portada: marcar assistència ---- */
+.attendance-admin {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+}
+.attendance-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  user-select: none;
+}
+.attendance-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--success);
+}
+.attendance-toggle.on {
+  border-color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+}

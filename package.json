@@ -1,0 +1,33 @@
+{
+  "name": "web-cumple",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:demo": "vite --mode demo",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc",
+    "test": "vitest run src",
+    "test:watch": "vitest src",
+    "pretest:rules": "npx -y kill-port 8180",
+    "test:rules": "npx -y firebase-tools@latest emulators:exec --only firestore --project demo-totem \"vitest run tests/rules\"",
+    "deploy": "npm run build && npx -y firebase-tools@latest deploy"
+  },
+  "dependencies": {
+    "firebase": "^12.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.9.0",
+    "vite": "^7.1.0",
+    "vitest": "^3.2.0"
+  }
+}
