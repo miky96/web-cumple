@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent } from 'react';
+import { useMemo, useRef, useState, type CSSProperties, type DragEvent } from 'react';
+import { useRemoteDraft } from '../../lib/hooks';
 import type { Repo } from '../../data/repo';
 import { EDITION_ID } from '../../data/repo';
 import { assignRemaining, defaultGroup } from '../../domain/groups/assign';
@@ -61,15 +62,10 @@ function GroupColumn({
   onDropPerson: (pid: string, gid: string | null) => void;
 }) {
   const [over, setOver] = useState(false);
-  const [name, setName] = useState(group?.name ?? '');
-  const [color, setColor] = useState(group?.color ?? '#999999');
-  const [image, setImage] = useState(group?.image ?? '');
+  const [name, setName] = useRemoteDraft(group?.name, (v) => v ?? '');
+  const [color, setColor] = useRemoteDraft(group?.color, (v) => v ?? '#999999');
+  const [image, setImage] = useRemoteDraft(group?.image, (v) => v ?? '');
   const debounce = useRef<number>(0);
-  useEffect(() => {
-    setName(group?.name ?? '');
-    setColor(group?.color ?? '#999999');
-    setImage(group?.image ?? '');
-  }, [group?.name, group?.color, group?.image]);
 
   const save = (patch: Partial<Group>) => group && repo.saveGroup(EDITION_ID, { ...group, ...patch });
 

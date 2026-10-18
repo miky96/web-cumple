@@ -1,4 +1,5 @@
-import { useEffect, useState, type ComponentType } from 'react';
+import { useState, type ComponentType } from 'react';
+import { useRemoteDraft } from '../../lib/hooks';
 import type { Repo } from '../../data/repo';
 import { EDITION_ID } from '../../data/repo';
 import { createStep, STEP_CATALOG, STEP_TYPES } from '../../domain/quiz/catalog';
@@ -58,16 +59,12 @@ function PreviewPhone({ steps, theme, group, onClose }: { steps: QuizStep[]; the
 
 export function QuizPage({ repo, data }: { repo: Repo; data: AdminData }) {
   const remote = data.publicEdition?.quizSteps ?? [];
-  const [steps, setSteps] = useState<QuizStep[]>(remote);
   const [dirty, setDirty] = useState(false);
+  const [steps, setSteps] = useRemoteDraft(data.publicEdition?.quizSteps, (s): QuizStep[] => s ?? [], !dirty);
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(false);
   const [newType, setNewType] = useState<StepType>('choice');
   const answered = data.responses.length;
-
-  useEffect(() => {
-    if (!dirty) setSteps(data.publicEdition?.quizSteps ?? []);
-  }, [data.publicEdition?.quizSteps]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const update = (next: QuizStep[]) => {
     setSteps(next);

@@ -9,6 +9,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc",
+    "lint": "eslint .",
     "test": "vitest run src",
     "test:watch": "vitest src",
     "pretest:rules": "npx -y kill-port 8180",
@@ -21,12 +22,18 @@
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@firebase/rules-unit-testing": "^5.0.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.13.0",
     "typescript": "~5.9.0",
+    "typescript-eslint": "^8.71.2",
     "vite": "^7.1.0",
     "vitest": "^3.2.0"
   }

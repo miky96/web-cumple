@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { Repo } from '../../data/repo';
 import { EDITION_ID } from '../../data/repo';
 import { DEFAULT_LOBBY, fromLocalInput, toLocalInput } from '../../domain/lobby/lobby';
 import { DEFAULT_THEME } from '../../domain/theme/palette';
 import type { Lobby } from '../../domain/types';
 import { copyText } from '../../lib/device';
+import { useRemoteDraft } from '../../lib/hooks';
 import { askConfirm } from '../../ui/confirm';
 import { ThemeScope } from '../../ui/ThemeScope';
 import { LobbyView } from '../public/LobbyView';
@@ -12,15 +13,9 @@ import type { AdminData } from './useAdminData';
 
 export function LobbyPage({ repo, data }: { repo: Repo; data: AdminData }) {
   const lobby = data.publicEdition?.lobby ?? DEFAULT_LOBBY;
-  const [endsAt, setEndsAt] = useState(toLocalInput(lobby.endsAt));
-  const [message, setMessage] = useState(lobby.message);
   const [dirty, setDirty] = useState(false);
-
-  useEffect(() => {
-    if (dirty) return;
-    setEndsAt(toLocalInput(lobby.endsAt));
-    setMessage(lobby.message);
-  }, [lobby.endsAt, lobby.message]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [endsAt, setEndsAt] = useRemoteDraft(lobby.endsAt, toLocalInput, !dirty);
+  const [message, setMessage] = useRemoteDraft(lobby.message, (m) => m, !dirty);
 
   const save = (patch: Partial<Lobby>) => repo.savePublicEdition(EDITION_ID, { lobby: { ...lobby, ...patch } });
 

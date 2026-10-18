@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useLatest } from '../../lib/hooks';
 import { prefersReducedMotion, vibrate } from '../../lib/device';
 import { BRAND } from '../../ui/brand';
 
@@ -92,8 +93,7 @@ export function RevealAnimation({ color, onDone }: { color: string; onDone: () =
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [phrase, setPhrase] = useState(0);
   const [flash, setFlash] = useState(false);
-  const doneRef = useRef(onDone);
-  doneRef.current = onDone;
+  const doneRef = useLatest(onDone);
   const finished = useRef(false);
   const reduced = prefersReducedMotion();
   const [assets, setAssets] = useState<(HTMLImageElement | null)[] | null>(null);

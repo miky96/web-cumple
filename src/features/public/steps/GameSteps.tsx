@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useLatest } from '../../../lib/hooks';
 import { evaluateStop, isClockHidden, stopTimeoutMs, type StopResult } from '../../../domain/minigames/stopTheClock';
 import { pickDelay, reactionRating, startReaction, tapReaction, type ReactionState } from '../../../domain/minigames/reaction';
 import { countTaps, tapRating } from '../../../domain/minigames/tapRace';
@@ -18,8 +19,7 @@ import { GameResult, StepShell, type StepProps } from './common';
 
 /** Requisit: estat que s'actualitza cada frame mentre `active`. */
 function useFrame(active: boolean, onFrame: (t: number) => void) {
-  const cb = useRef(onFrame);
-  cb.current = onFrame;
+  const cb = useLatest(onFrame);
   useEffect(() => {
     if (!active) return;
     let id = 0;
@@ -29,7 +29,7 @@ function useFrame(active: boolean, onFrame: (t: number) => void) {
     };
     id = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(id);
-  }, [active]);
+  }, [active, cb]);
 }
 
 // ======================= Atura el rellotge =======================
@@ -170,19 +170,20 @@ export function TapRaceStep({ step, onSubmit }: StepProps<'tap-race'>) {
   const [left, setLeft] = useState(durationMs);
   const [pulse, setPulse] = useState(false);
   const taps = useRef<number[]>([]);
+  const [tapCount, setTapCount] = useState(0);
   const startAt = useRef(0);
   const [final, setFinal] = useState(0);
 
   useEffect(() => {
     if (phase !== 'countdown') return;
-    if (count === 0) {
+    const id = window.setTimeout(() => {
+      if (count > 1) return setCount((c) => c - 1);
       startAt.current = now();
       taps.current = [];
+      setTapCount(0);
       setPhase('running');
       vibrate(50);
-      return;
-    }
-    const id = window.setTimeout(() => setCount((c) => c - 1), 700);
+    }, 700);
     return () => window.clearTimeout(id);
   }, [phase, count]);
 
@@ -202,6 +203,7 @@ export function TapRaceStep({ step, onSubmit }: StepProps<'tap-race'>) {
       setPhase('countdown');
     } else if (phase === 'running') {
       taps.current.push(now());
+      setTapCount(taps.current.length);
       setPulse(true);
       window.setTimeout(() => setPulse(false), 50);
     }
@@ -228,7 +230,7 @@ export function TapRaceStep({ step, onSubmit }: StepProps<'tap-race'>) {
           {phase === 'running' && `Queden ${formatSeconds(left, 1)}`}
         </div>
         <button type="button" className={`tap-target ${pulse ? 'pulse' : ''}`} onPointerDown={onTap}>
-          {phase === 'ready' ? 'GO' : phase === 'countdown' ? count || '!' : taps.current.length}
+          {phase === 'ready' ? 'GO' : phase === 'countdown' ? count || '!' : tapCount}
         </button>
       </div>
     </StepShell>

@@ -6,15 +6,16 @@ import { Totem } from '../../ui/brand';
 const PIXEL_COLORS = ['#ff2e93', '#2ef2ff', '#ffe94d', '#7cff4f', '#b14dff'];
 
 /** Confeti de píxels de neó (inclou el color del grup). */
+// Posicions aleatòries generades un sol cop (fora del render, que ha de ser pur).
+const CONFETTI_LAYOUT = Array.from({ length: 36 }, () => ({
+  left: Math.random() * 100,
+  delay: Math.random() * 1.2,
+  dur: 2.2 + Math.random() * 2,
+}));
+
 function Confetti({ color }: { color: string }) {
   const pieces = useMemo(
-    () =>
-      Array.from({ length: 36 }, (_, i) => ({
-        c: i % 3 === 0 ? color : PIXEL_COLORS[i % PIXEL_COLORS.length],
-        left: Math.random() * 100,
-        delay: Math.random() * 1.2,
-        dur: 2.2 + Math.random() * 2,
-      })),
+    () => CONFETTI_LAYOUT.map((p, i) => ({ ...p, c: i % 3 === 0 ? color : PIXEL_COLORS[i % PIXEL_COLORS.length] })),
     [color],
   );
   return (
@@ -44,15 +45,15 @@ export function ResultView({ reveal, name, celebrate, background, footer, onRepl
       {background && <div className="result-bg" style={{ backgroundImage: `url("${background}")` }} aria-hidden />}
       {celebrate && <Confetti color={reveal.color} />}
       <div className="screen-inner">
-        <div className="result-kicker">{name} · l'algoritme ha processat el teu perfil com a quadro de persona</div>
+        <div className="result-kicker">{name} · l'algoritme ha processat el teu perfil com a quadro de persona i t'ha tocat l'estudi...</div>
         <h1 className="result-name">{reveal.groupName}</h1>
         <div className="result-art">
           <Totem height={230} />
         </div>
         <section className="mates">
-          <h3>El teu estudi!</h3>
+          <h3>I aqui els teus companys que han estat assignats amb tu!</h3>
           {reveal.mates.length === 0 ? (
-            <p className="muted">De moment ets l'únic membre... PRIMO! hahaha tranquil ja arribarà més individus que t'acompanyin en la teva aventura.</p>
+            <p className="muted">De moment ets l'únic membre... PRIMO! hahaha tranquil ja arribaràn més individus que t'acompanyin en la teva aventura.</p>
           ) : (
             <ul>
               {reveal.mates.map((m, i) => (
@@ -74,10 +75,10 @@ export function ResultView({ reveal, name, celebrate, background, footer, onRepl
             <button type="button" className="link-btn" onClick={async () => {
                 const ok = await askConfirm({
                   title: 'CONTINUE?',
-                  countdown: 9,
-                  message: 'Tornaràs a a passar les proves i els nous resultats substituiran els anteriors. Es una pena que l\'algoritme ja hagi decidit el teu destí. Pero pots guanyar als demés, suficient per el teu ego no?',
-                  confirmLabel: 'Sí, tornar a fer el viatje intergalactic per donar pel cul als demés',
-                  cancelLabel: 'No, tinc el ego suficientment bé i no necessito demostrar que soc superior a la gent',
+                  countdown: 15,
+                  message: 'Tornaràs a a passar les proves i els nous resultats substituiran als anteriors. Es una pena que l\'algoritme ja hagi decidit el teu destí i aquest no canviarà. Pero pots guanyar als demés i intentar ser la millor, suficient per omplir el teu ego no?',
+                  confirmLabel: 'Sí, tornar a fer el viatje intergalactic per donar pel cul als demés i poder dir que vaig guanyar als minijocs fent un record guiness',
+                  cancelLabel: 'No, tinc l\'ego suficientment bé i no necessito demostrar que soc superior a la gent, em comformo sabent el meu estudi.',
                 });
                 if (ok) onRetake();
               }}>

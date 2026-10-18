@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useRemoteDraft } from '../../lib/hooks';
 import type { Repo } from '../../data/repo';
 import { EDITION_ID } from '../../data/repo';
 import { nightLabel } from '../../data/defaults';
@@ -47,16 +48,16 @@ function WelcomeMock({ theme }: { theme: Theme }) {
 }
 
 export function SettingsPage({ repo, data }: { repo: Repo; data: AdminData }) {
-  const [theme, setTheme] = useState<Theme>(normalizeTheme(data.publicEdition?.theme));
   const [dirty, setDirty] = useState(false);
-  const [nights, setNights] = useState<string[]>(data.edition?.nights ?? []);
+  const [theme, setTheme] = useRemoteDraft(
+    data.publicEdition?.theme,
+    (t): Theme => normalizeTheme(t),
+    !dirty && !!data.publicEdition,
+  );
+  const [nights, setNights] = useRemoteDraft(data.edition?.nights, (n): string[] => n ?? []);
   const [newNight, setNewNight] = useState('');
   const [title, setTitle] = useState(data.edition?.title ?? '');
 
-  useEffect(() => {
-    if (!dirty && data.publicEdition) setTheme(data.publicEdition.theme);
-  }, [data.publicEdition?.theme]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => setNights(data.edition?.nights ?? []), [data.edition?.nights]);
 
   const set = (patch: Partial<Theme>) => {
     setTheme((t) => ({ ...t, ...patch }));

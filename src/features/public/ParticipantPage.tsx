@@ -25,11 +25,14 @@ type Phase =
   | { kind: 'pending' };
 
 export function ParticipantPage({ token }: { token: string }) {
-  const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
+  const [rawPhase, setPhase] = useState<Phase>({ kind: 'loading' });
+  const phase: Phase = isValidToken(token) ? rawPhase : { kind: 'invalid' };
   const [invite, setInvite] = useState<Invite | null>(null);
   const [edition, setEdition] = useState<PublicEdition | null>(null);
   const editionRef = useRef<PublicEdition | null>(null);
-  editionRef.current = edition;
+  useEffect(() => {
+    editionRef.current = edition;
+  }, [edition]);
   useDocumentTheme(edition?.theme ?? null);
 
   // mentre juga, precarreguem el tòtem de l'animació (els colors del tema ja estan aplicats)
@@ -48,7 +51,7 @@ export function ParticipantPage({ token }: { token: string }) {
   }, [token]);
 
   useEffect(() => {
-    if (!isValidToken(token)) return setPhase({ kind: 'invalid' });
+    if (!isValidToken(token)) return; // el render ja mostra 'invalid'
     let alive = true;
     let unsubscribe: (() => void) | null = null;
     (async () => {

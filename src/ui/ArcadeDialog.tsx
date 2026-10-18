@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLatest } from '../lib/hooks';
 
 interface Props {
   title: string;
@@ -18,8 +19,7 @@ export function ArcadeDialog({ title, message, confirmLabel, cancelLabel, onConf
   const [left, setLeft] = useState(countdown ?? 0);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const cancelBtnRef = useRef<HTMLButtonElement>(null);
-  const cancelRef = useRef(onCancel);
-  cancelRef.current = onCancel;
+  const cancelRef = useLatest(onCancel);
 
   useEffect(() => {
     (danger ? cancelBtnRef : confirmRef).current?.focus(); // en accions destructives, el focus va a "cancel·lar"
@@ -36,7 +36,7 @@ export function ArcadeDialog({ title, message, confirmLabel, cancelLabel, onConf
     }
     const id = window.setTimeout(() => setLeft((n) => n - 1), 1000);
     return () => window.clearTimeout(id);
-  }, [left, countdown]);
+  }, [left, countdown, cancelRef]);
 
   return (
     <div className="arcade-dialog-back" onClick={(e) => e.target === e.currentTarget && onCancel()}>
