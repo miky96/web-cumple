@@ -149,7 +149,25 @@ export interface Reveal {
   groupName: string;
   color: string;
   image: string | null;
-  mates: string[];
+  /** Clau pública pròpia: en obrir el resultat es marca com a «ha contestat». */
+  selfKey: string;
+  /** Claus dels companys. Els noms NO hi són: només es poden llegir quan el company ja ha contestat. */
+  mateKeys: string[];
+  /** Format antic (abans de les claus). Només per compatibilitat fins que es torni a publicar. */
+  mates?: string[];
+}
+
+/** `mateCards/{key}`: el nom d'un membre, llegible només quan `mateStatus/{key}` té `answeredAt`. */
+export interface MateCard {
+  editionId: string;
+  name: string;
+}
+
+/** Company que ja ha contestat (el que veu el participant). */
+export interface RevealedMate {
+  key: string;
+  name: string;
+  answeredAt: number;
 }
 
 export interface QuizResponse {

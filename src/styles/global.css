@@ -944,6 +944,17 @@ textarea {
   color: var(--ink);
   box-shadow: 0 0 8px color-mix(in srgb, var(--group) 40%, transparent);
 }
+.mates .chip-locked {
+  border-style: dashed;
+  color: var(--muted);
+  box-shadow: none;
+  animation: none;
+  opacity: 0.6;
+}
+.mates-pending {
+  margin: 12px 0 0;
+  font-size: 0.85rem;
+}
 .result-footer {
   font-family: var(--font-pixel);
   font-size: 0.55rem;

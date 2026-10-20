@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { finalAnswers } from '../../domain/quiz/progress';
 import { safeImageUrl } from '../../domain/safeUrl';
 import { isValidToken } from '../../domain/tokens';
-import type { Answers, Invite, PublicEdition, Reveal } from '../../domain/types';
+import type { Answers, Invite, PublicEdition, Reveal, RevealedMate } from '../../domain/types';
 import { getRepo } from '../../data/repo';
 import { LAST_TOKEN_KEY, progressKey, readJson, removeKey, writeJson } from '../../lib/storage';
 import { BRAND, Logo } from '../../ui/brand';
@@ -24,6 +24,32 @@ type Phase =
   | { kind: 'result'; reveal: Reveal; celebrate: boolean }
   | { kind: 'pending' };
 
+/**
+ * Companys visibles en temps real: només els que ja han contestat.
+ * També marca el participant com a contestat perquè els seus companys el vegin.
+ */
+function useRevealedMates(reveal: Reveal | null): string[] {
+  const [mates, setMates] = useState<{ for: Reveal; list: RevealedMate[] } | null>(null);
+  useEffect(() => {
+    if (!reveal?.mateKeys) return; // format antic: tots els noms ja venen a la revelació
+    let unsubscribe: (() => void) | null = null;
+    let alive = true;
+    (async () => {
+      const repo = await getRepo();
+      if (!alive) return;
+      void repo.markAnswered(reveal.selfKey);
+      unsubscribe = repo.watchRevealedMates(reveal.mateKeys, (list) => alive && setMates({ for: reveal, list }));
+    })();
+    return () => {
+      alive = false;
+      unsubscribe?.();
+    };
+  }, [reveal]);
+  if (!reveal) return [];
+  if (!reveal.mateKeys) return reveal.mates ?? [];
+  return mates?.for === reveal ? mates.list.map((m) => m.name) : [];
+}
+
 export function ParticipantPage({ token }: { token: string }) {
   const [rawPhase, setPhase] = useState<Phase>({ kind: 'loading' });
   const phase: Phase = isValidToken(token) ? rawPhase : { kind: 'invalid' };
@@ -34,6 +60,8 @@ export function ParticipantPage({ token }: { token: string }) {
     editionRef.current = edition;
   }, [edition]);
   useDocumentTheme(edition?.theme ?? null);
+  const currentReveal = rawPhase.kind === 'revealing' || rawPhase.kind === 'result' ? rawPhase.reveal : null;
+  const mates = useRevealedMates(currentReveal);
 
   // mentre juga, precarreguem el tòtem de l'animació (els colors del tema ja estan aplicats)
   useEffect(() => {
@@ -181,6 +209,7 @@ export function ParticipantPage({ token }: { token: string }) {
       return (
         <ResultView
           reveal={phase.reveal}
+          mates={mates}
           name={invite?.displayName ?? ''}
           celebrate={phase.celebrate}
           background={safeImageUrl(phase.reveal.image ?? edition?.theme.resultBackground)}

@@ -10,7 +10,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 
 const rules = readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8');
@@ -42,9 +42,13 @@ beforeEach(async () => {
     await setDoc(doc(db, 'editions', EDITION, 'groups', 'g1'), { name: 'Tribu Volcà' });
     for (const t of [TOKEN, OTHER]) {
       await setDoc(doc(db, 'invites', t), { editionId: EDITION, displayName: t });
-      await setDoc(doc(db, 'reveals', t), { editionId: EDITION, groupName: 'Tribu Volcà', color: '#f00', image: null, mates: [] });
+      await setDoc(doc(db, 'reveals', t), { editionId: EDITION, groupName: 'Tribu Volcà', color: '#f00', image: null, selfKey: `k_${t}`, mateKeys: [] });
     }
     await setDoc(doc(db, 'responses', OTHER), { editionId: EDITION, answers: {}, completedAt: new Date() });
+    await setDoc(doc(db, 'mateStatus', 'k_nou'), { editionId: EDITION, answeredAt: null });
+    await setDoc(doc(db, 'mateCards', 'k_nou'), { editionId: EDITION, name: 'Anna' });
+    await setDoc(doc(db, 'mateStatus', 'k_fet'), { editionId: EDITION, answeredAt: new Date() });
+    await setDoc(doc(db, 'mateCards', 'k_fet'), { editionId: EDITION, name: 'Bernat' });
   });
 });
 
@@ -120,6 +124,34 @@ describe('participant anònim', () => {
   it('NO pot esborrar ni escriure revelacions', async () => {
     await assertFails(deleteDoc(doc(anon(), 'responses', OTHER)));
     await assertFails(setDoc(doc(anon(), 'reveals', TOKEN), { groupName: 'Hack' }));
+  });
+});
+
+describe('companys que han contestat', () => {
+  it('es pot saber si un company ha contestat, però NO el seu nom fins que ho fa', async () => {
+    await assertSucceeds(getDoc(doc(anon(), 'mateStatus', 'k_nou')));
+    await assertFails(getDoc(doc(anon(), 'mateCards', 'k_nou')));
+    await assertSucceeds(getDoc(doc(anon(), 'mateCards', 'k_fet')));
+  });
+
+  it('NO es poden llistar', async () => {
+    await assertFails(getDocs(collection(anon(), 'mateStatus')));
+    await assertFails(getDocs(collection(anon(), 'mateCards')));
+  });
+
+  it('es marca com a contestat un sol cop, amb l’hora del servidor, i llavors es veu el nom', async () => {
+    await assertFails(updateDoc(doc(anon(), 'mateStatus', 'k_nou'), { answeredAt: new Date(0) }));
+    await assertSucceeds(updateDoc(doc(anon(), 'mateStatus', 'k_nou'), { answeredAt: serverTimestamp() }));
+    await assertSucceeds(getDoc(doc(anon(), 'mateCards', 'k_nou')));
+    await assertFails(updateDoc(doc(anon(), 'mateStatus', 'k_nou'), { answeredAt: serverTimestamp() }));
+  });
+
+  it('NO es poden crear, desmarcar, ni tocar altres camps o els noms', async () => {
+    await assertFails(setDoc(doc(anon(), 'mateStatus', 'k_inventat'), { editionId: EDITION, answeredAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(anon(), 'mateStatus', 'k_fet'), { answeredAt: null }));
+    await assertFails(updateDoc(doc(anon(), 'mateStatus', 'k_nou'), { answeredAt: serverTimestamp(), editionId: '2099' }));
+    await assertFails(setDoc(doc(anon(), 'mateCards', 'k_fet'), { editionId: EDITION, name: 'Hack' }));
+    await assertFails(deleteDoc(doc(anon(), 'mateStatus', 'k_fet')));
   });
 });
 

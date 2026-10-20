@@ -8,9 +8,9 @@ import {
 } from 'firebase/auth';
 import {
   collection,
-  deleteDoc,
   doc,
   getDoc,
+  getDocs,
   getFirestore,
   onSnapshot,
   query,
@@ -34,10 +34,12 @@ import type {
   PublicEdition,
   QuizResponse,
   Reveal,
+  RevealedMate,
 } from '../../domain/types';
+import { memberKey, sortRevealedMates } from '../../domain/groups/reveals';
 import { newEdition, newGroups, newPublicEdition, normalizePublicEdition } from '../defaults';
 import { reportRepoError } from '../errors';
-import type { AdminRepo, AdminUser, PublicRepo, ResponseWithToken, Unsubscribe } from '../ports';
+import type { AdminRepo, AdminUser, Publication, PublicRepo, ResponseWithToken, Unsubscribe } from '../ports';
 import { getFirebaseApp } from './firebaseApp';
 
 const toMillis = (v: unknown): number | null => (v instanceof Timestamp ? v.toMillis() : typeof v === 'number' ? v : null);
@@ -65,6 +67,8 @@ export class FirestoreRepo implements PublicRepo, AdminRepo {
   private responseRef = (t: string) => doc(this.db, 'responses', t);
   private revealRef = (t: string) => doc(this.db, 'reveals', t);
   private personRef = (id: string) => doc(this.db, 'people', id);
+  private mateStatusRef = (k: string) => doc(this.db, 'mateStatus', k);
+  private mateCardRef = (k: string) => doc(this.db, 'mateCards', k);
 
   // ---------- PublicRepo ----------
   async getInvite(token: string): Promise<Invite | null> {
@@ -102,6 +106,57 @@ export class FirestoreRepo implements PublicRepo, AdminRepo {
       if ((e as { code?: string }).code === 'permission-denied') return null;
       throw e;
     }
+  }
+
+  async markAnswered(selfKey: string): Promise<void> {
+    try {
+      const s = await getDoc(this.mateStatusRef(selfKey));
+      // si encara no s'ha publicat amb claus, no hi ha res a marcar (ho farà l'admin en publicar)
+      if (!s.exists() || s.data().answeredAt) return;
+      await updateDoc(this.mateStatusRef(selfKey), { answeredAt: serverTimestamp() });
+    } catch (e) {
+      console.warn("No s'ha pogut marcar com a contestat", e);
+    }
+  }
+
+  watchRevealedMates(mateKeys: string[], cb: (mates: RevealedMate[]) => void): Unsubscribe {
+    const revealed = new Map<string, RevealedMate>();
+    const names = new Map<string, Promise<string | null>>();
+    let alive = true;
+    const emit = () => alive && cb(sortRevealedMates([...revealed.values()]));
+    const fetchName = (k: string) => {
+      if (!names.has(k))
+        names.set(
+          k,
+          getDoc(this.mateCardRef(k)).then(
+            (c) => (c.exists() ? ((c.data() as { name?: string }).name ?? null) : null),
+            () => (names.delete(k), null), // permís denegat: es tornarà a provar al següent canvi
+          ),
+        );
+      return names.get(k)!;
+    };
+    const unsubs = mateKeys.map((k) =>
+      onSnapshot(
+        this.mateStatusRef(k),
+        async (s) => {
+          // estimate: el serverTimestamp encara pendent es veu com a hora local
+          const at = s.exists() ? toMillis(s.get('answeredAt', { serverTimestamps: 'estimate' })) : null;
+          if (at === null) {
+            if (revealed.delete(k)) emit(); // l'admin li ha esborrat la resposta
+            return;
+          }
+          const name = await fetchName(k);
+          if (name) revealed.set(k, { key: k, name, answeredAt: at });
+          emit();
+        },
+        (e) => console.warn('No es pot escoltar un company', e),
+      ),
+    );
+    if (mateKeys.length === 0) queueMicrotask(emit);
+    return () => {
+      alive = false;
+      unsubs.forEach((u) => u());
+    };
   }
 
   // ---------- Auth ----------
@@ -252,6 +307,8 @@ export class FirestoreRepo implements PublicRepo, AdminRepo {
     batch.delete(this.inviteRef(p.token));
     batch.delete(this.responseRef(p.token));
     batch.delete(this.revealRef(p.token));
+    batch.delete(this.mateStatusRef(memberKey(editionId, p.id)));
+    batch.delete(this.mateCardRef(memberKey(editionId, p.id)));
     await batch.commit();
   }
 
@@ -286,19 +343,35 @@ export class FirestoreRepo implements PublicRepo, AdminRepo {
     await batch.commit();
   }
 
-  async publishReveals(editionId: string, reveals: Record<string, Reveal>, staleTokens: string[], hash: string): Promise<void> {
+  async publishReveals(editionId: string, pub: Publication): Promise<void> {
+    // estat actual: no trepitgem l'hora d'arribada de qui ja estava marcat
+    const existing = await getDocs(query(collection(this.db, 'mateStatus'), where('editionId', '==', editionId)));
+    const alreadyAnswered = new Set(existing.docs.filter((d) => d.data().answeredAt).map((d) => d.id));
     const batch = writeBatch(this.db);
-    for (const t of staleTokens) batch.delete(this.revealRef(t));
-    for (const [t, r] of Object.entries(reveals)) batch.set(this.revealRef(t), clean(r));
+    for (const t of pub.staleTokens) batch.delete(this.revealRef(t));
+    for (const [t, r] of Object.entries(pub.reveals)) batch.set(this.revealRef(t), clean(r));
+    for (const [k, card] of Object.entries(pub.cards)) {
+      batch.set(this.mateCardRef(k), clean(card));
+      const at = pub.answered[k];
+      const backfill = at !== undefined && !alreadyAnswered.has(k);
+      batch.set(
+        this.mateStatusRef(k),
+        backfill ? { editionId, answeredAt: Timestamp.fromMillis(at || Date.now()) } : existing.docs.some((d) => d.id === k) ? { editionId } : { editionId, answeredAt: null },
+        { merge: true },
+      );
+    }
     batch.update(this.editionRef(editionId), {
-      publishedHash: hash,
+      publishedHash: pub.hash,
       publishedAt: serverTimestamp(),
-      publishedTokens: Object.keys(reveals),
+      publishedTokens: Object.keys(pub.reveals),
     });
     await batch.commit();
   }
 
-  async resetResponse(token: string): Promise<void> {
-    await deleteDoc(this.responseRef(token));
+  async resetResponse(editionId: string, p: Participant): Promise<void> {
+    const batch = writeBatch(this.db);
+    batch.delete(this.responseRef(p.token));
+    batch.set(this.mateStatusRef(memberKey(editionId, p.id)), { editionId, answeredAt: null }, { merge: true });
+    await batch.commit();
   }
 }

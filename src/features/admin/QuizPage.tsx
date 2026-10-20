@@ -21,7 +21,8 @@ function PreviewPhone({ steps, theme, group, onClose }: { steps: QuizStep[]; the
     groupName: group?.name ?? 'Grup de Prova',
     color: group?.color ?? '#8e24aa',
     image: group?.image ?? null,
-    mates: ['Anna', 'Bernat', 'Carla'],
+    selfKey: 'prova_jo',
+    mateKeys: ['prova_1', 'prova_2', 'prova_3', 'prova_4'],
   };
   return (
     <div className="preview-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -41,6 +42,7 @@ function PreviewPhone({ steps, theme, group, onClose }: { steps: QuizStep[]; the
           {phase === 'result' && (
             <ResultView
               reveal={sample}
+              mates={['Anna', 'Bernat']}
               name="Miquel"
               celebrate
               background={sample.image ?? theme.resultBackground ?? null}

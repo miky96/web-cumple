@@ -29,6 +29,8 @@ function Confetti({ color }: { color: string }) {
 
 interface Props {
   reveal: Reveal;
+  /** Noms dels companys que ja han contestat, per ordre d'arribada. */
+  mates: string[];
   name: string;
   celebrate: boolean;
   /** Imatge de fons (la del grup o, si no en té, la de l'edició). */
@@ -38,8 +40,10 @@ interface Props {
   onRetake?: () => void;
 }
 
-export function ResultView({ reveal, name, celebrate, background, footer, onReplay, onRetake }: Props) {
+export function ResultView({ reveal, mates, name, celebrate, background, footer, onReplay, onRetake }: Props) {
   const style = { '--group': reveal.color } as CSSProperties;
+  const total = reveal.mateKeys?.length ?? reveal.mates?.length ?? 0;
+  const pending = Math.max(0, total - mates.length);
   return (
     <main className={`screen result ${background ? 'has-bg' : ''}`} style={style}>
       {background && <div className="result-bg" style={{ backgroundImage: `url("${background}")` }} aria-hidden />}
@@ -52,16 +56,31 @@ export function ResultView({ reveal, name, celebrate, background, footer, onRepl
         </div>
         <section className="mates">
           <h3>I aqui els teus companys que han estat assignats amb tu!</h3>
-          {reveal.mates.length === 0 ? (
+          {total === 0 ? (
             <p className="muted">De moment ets l'únic membre... PRIMO! hahaha tranquil ja arribaràn més individus que t'acompanyin en la teva aventura.</p>
           ) : (
-            <ul>
-              {reveal.mates.map((m, i) => (
-                <li key={m} className="chip" style={{ animationDelay: `${0.3 + i * 0.06}s` }}>
-                  {m}
-                </li>
-              ))}
-            </ul>
+            <>
+              {mates.length === 0 && (
+                <p className="muted">Ets el primer de l'estudi en arribar! Els teus companys aniran apareixent aquí a mesura que superin les proves.</p>
+              )}
+              <ul>
+                {mates.map((m, i) => (
+                  <li key={`${m}-${i}`} className="chip" style={{ animationDelay: `${0.3 + i * 0.06}s` }}>
+                    {m}
+                  </li>
+                ))}
+                {Array.from({ length: pending }, (_, i) => (
+                  <li key={`pending-${i}`} className="chip chip-locked" aria-hidden>
+                    ???
+                  </li>
+                ))}
+              </ul>
+              {pending > 0 && (
+                <p className="muted mates-pending">
+                  {pending === 1 ? 'Falta 1 company per descobrir...' : `Falten ${pending} companys per descobrir...`} Torna més tard!
+                </p>
+              )}
+            </>
           )}
         </section>
         {footer && <p className="result-footer">{footer}</p>}

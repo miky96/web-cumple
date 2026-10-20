@@ -4,10 +4,10 @@
  */
 import { generateToken } from '../../domain/tokens';
 import { slugId } from '../../domain/text';
-import type { Answers, Edition, Group, Invite, Participant, PublicEdition, QuizResponse, Reveal } from '../../domain/types';
-import type { AdminRepo, AdminUser, PublicRepo, ResponseWithToken, Unsubscribe } from '../ports';
+import type { Answers, Edition, Group, Invite, MateCard, Participant, PublicEdition, QuizResponse, Reveal, RevealedMate } from '../../domain/types';
+import type { AdminRepo, AdminUser, Publication, PublicRepo, ResponseWithToken, Unsubscribe } from '../ports';
 import { newEdition, newGroups, newPublicEdition, normalizePublicEdition } from '../defaults';
-import { buildReveals, hashReveals } from '../../domain/groups/reveals';
+import { buildReveals, hashReveals, memberKey, sortRevealedMates } from '../../domain/groups/reveals';
 import { buildAttendance } from '../../domain/lobby/lobby';
 import type { ImportRow } from '../../domain/people/importList';
 
@@ -21,10 +21,13 @@ interface Store {
   invites: Record<string, Invite>;
   responses: Record<string, QuizResponse>;
   reveals: Record<string, Reveal>;
+  mateCards: Record<string, MateCard>;
+  /** clau → instant en què va contestar (null = encara no). */
+  mateStatus: Record<string, number | null>;
   user: AdminUser | null;
 }
 
-const KEY = 'web-cumple-demo-store-v4';
+const KEY = 'web-cumple-demo-store-v5';
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 const delay = (ms = 120) => new Promise((r) => setTimeout(r, ms));
 
@@ -65,13 +68,19 @@ function seed(editionId: string): Store {
     invites,
     responses: {},
     reveals: {},
+    mateCards: {},
+    mateStatus: {},
     user: null,
   };
   // demo: portada activa amb compte enrere de 3 dies
   pub.lobby = { ...pub.lobby, surveyOpen: false, endsAt: Date.now() + 3 * 86400_000 + 5 * 3600_000, attendance: buildAttendance(Object.values(participants)) };
   const built = buildReveals(editionId, Object.values(participants), Object.values(groups));
   store.reveals = built.reveals;
-  edition.publishedHash = hashReveals(built.reveals);
+  store.mateCards = built.cards;
+  // demo: alguns companys ja han contestat (la resta apareixeran a mesura que juguin)
+  const t0 = Date.now() - 3600_000;
+  Object.keys(built.cards).forEach((k, i) => (store.mateStatus[k] = i % 3 === 0 ? t0 + i * 60_000 : null));
+  edition.publishedHash = hashReveals(built);
   edition.publishedAt = Date.now();
   edition.publishedTokens = Object.keys(built.reveals);
   return store;
@@ -138,6 +147,26 @@ export class MemoryRepo implements PublicRepo, AdminRepo {
     await delay();
     if (!this.store.responses[token]) return null; // imita les rules
     return clone(this.store.reveals[token] ?? null);
+  }
+
+  async markAnswered(selfKey: string) {
+    if (selfKey in this.store.mateStatus && this.store.mateStatus[selfKey] === null) {
+      this.store.mateStatus[selfKey] = Date.now();
+      this.commit();
+    }
+  }
+  watchRevealedMates(mateKeys: string[], cb: (mates: RevealedMate[]) => void) {
+    return this.watch(
+      () =>
+        sortRevealedMates(
+          mateKeys.flatMap((key) => {
+            const at = this.store.mateStatus[key];
+            const card = this.store.mateCards[key];
+            return at != null && card ? [{ key, name: card.name, answeredAt: at }] : [];
+          }),
+        ),
+      cb,
+    );
   }
 
   // ---------- AdminRepo ----------
@@ -214,6 +243,8 @@ export class MemoryRepo implements PublicRepo, AdminRepo {
     delete this.store.invites[p.token];
     delete this.store.responses[p.token];
     delete this.store.reveals[p.token];
+    delete this.store.mateCards[memberKey(editionId, p.id)];
+    delete this.store.mateStatus[memberKey(editionId, p.id)];
     this.commit();
   }
   async regenerateToken(editionId: string, p: Participant) {
@@ -246,18 +277,24 @@ export class MemoryRepo implements PublicRepo, AdminRepo {
     }
     this.commit();
   }
-  async publishReveals(editionId: string, reveals: Record<string, Reveal>, stale: string[], hash: string) {
+  async publishReveals(editionId: string, pub: Publication) {
     await delay(400);
-    for (const t of stale) delete this.store.reveals[t];
-    Object.assign(this.store.reveals, clone(reveals));
+    for (const t of pub.staleTokens) delete this.store.reveals[t];
+    Object.assign(this.store.reveals, clone(pub.reveals));
+    Object.assign(this.store.mateCards, clone(pub.cards));
+    for (const k of Object.keys(pub.cards)) {
+      if (this.store.mateStatus[k] != null) continue;
+      this.store.mateStatus[k] = k in pub.answered ? pub.answered[k] || Date.now() : null;
+    }
     const e = this.store.editions[editionId];
-    e.publishedHash = hash;
+    e.publishedHash = pub.hash;
     e.publishedAt = Date.now();
-    e.publishedTokens = Object.keys(reveals);
+    e.publishedTokens = Object.keys(pub.reveals);
     this.commit();
   }
-  async resetResponse(token: string) {
-    delete this.store.responses[token];
+  async resetResponse(editionId: string, p: Participant) {
+    delete this.store.responses[p.token];
+    this.store.mateStatus[memberKey(editionId, p.id)] = null;
     this.commit();
   }
 

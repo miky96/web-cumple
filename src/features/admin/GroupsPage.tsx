@@ -3,7 +3,7 @@ import { useRemoteDraft } from '../../lib/hooks';
 import type { Repo } from '../../data/repo';
 import { EDITION_ID } from '../../data/repo';
 import { assignRemaining, defaultGroup } from '../../domain/groups/assign';
-import { buildReveals, hashReveals, publishStatus, staleRevealTokens } from '../../domain/groups/reveals';
+import { answeredKeys, buildReveals, hashReveals, publishStatus, staleRevealTokens } from '../../domain/groups/reveals';
 import { similarColorPairs } from '../../domain/theme/palette';
 import { slugId } from '../../domain/text';
 import type { Group, Participant } from '../../domain/types';
@@ -13,14 +13,21 @@ import type { AdminData } from './useAdminData';
 function PublishPanel({ repo, data }: { repo: Repo; data: AdminData }) {
   const [busy, setBusy] = useState(false);
   const build = useMemo(() => buildReveals(EDITION_ID, data.participants, data.groups), [data.participants, data.groups]);
-  const status = publishStatus(data.edition?.publishedHash ?? null, build.reveals);
+  const status = publishStatus(data.edition?.publishedHash ?? null, build);
   const count = Object.keys(build.reveals).length;
 
   const publish = async () => {
     setBusy(true);
     try {
       const stale = staleRevealTokens(data.edition?.publishedTokens ?? [], build.reveals);
-      await repo.publishReveals(EDITION_ID, build.reveals, stale, hashReveals(build.reveals));
+      const completedAt = new Map(data.responses.map((r) => [r.token, r.completedAt]));
+      await repo.publishReveals(EDITION_ID, {
+        reveals: build.reveals,
+        cards: build.cards,
+        answered: answeredKeys(EDITION_ID, data.participants, completedAt, build),
+        staleTokens: stale,
+        hash: hashReveals(build),
+      });
     } finally {
       setBusy(false);
     }

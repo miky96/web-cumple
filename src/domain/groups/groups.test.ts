@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { seededRng } from '../random';
 import type { Group, Participant } from '../types';
 import { assignRemaining, defaultGroup } from './assign';
-import { buildReveals, hashReveals, publishStatus, staleRevealTokens } from './reveals';
+import { answeredKeys, buildReveals, hashReveals, memberKey, publishStatus, sortRevealedMates, staleRevealTokens } from './reveals';
 
 const person = (id: string, groupId: string | null = null): Participant => ({
   id,
@@ -19,12 +19,16 @@ const person = (id: string, groupId: string | null = null): Participant => ({
 const groups: Group[] = [defaultGroup(0, 'g1'), defaultGroup(1, 'g2'), defaultGroup(2, 'g3')];
 
 describe('buildReveals', () => {
-  it('genera una revelació per token amb els companys ordenats i sense un mateix', () => {
+  it('genera una revelació per token amb les claus dels companys (sense noms) i sense un mateix', () => {
     const ps = [person('c', 'g1'), person('a', 'g1'), person('b', 'g1'), person('d', 'g2'), person('e')];
     const r = buildReveals('2027', ps, groups);
-    expect(r.reveals.tok_c.mates).toEqual(['A', 'B']);
+    expect(r.reveals.tok_c.selfKey).toBe('2027_c');
+    expect(r.reveals.tok_c.mateKeys).toEqual(['2027_a', '2027_b']);
+    expect(JSON.stringify(r.reveals.tok_c)).not.toContain('"A"');
     expect(r.reveals.tok_c.groupName).toBe(groups[0].name);
-    expect(r.reveals.tok_d.mates).toEqual([]);
+    expect(r.reveals.tok_d.mateKeys).toEqual([]);
+    expect(r.cards['2027_a']).toEqual({ editionId: '2027', name: 'A' });
+    expect(r.cards['2027_e']).toBeUndefined();
     expect(r.unassigned.map((p) => p.id)).toEqual(['e']);
     expect(r.emptyGroups.map((g) => g.id)).toEqual(['g3']);
     expect(r.reveals.tok_e).toBeUndefined();
@@ -39,18 +43,42 @@ describe('buildReveals', () => {
 describe('publicació', () => {
   it('el hash és estable i detecta canvis', () => {
     const ps = [person('a', 'g1'), person('b', 'g2')];
-    const r1 = buildReveals('2027', ps, groups).reveals;
-    const r2 = buildReveals('2027', [...ps].reverse(), groups).reveals;
+    const r1 = buildReveals('2027', ps, groups);
+    const r2 = buildReveals('2027', [...ps].reverse(), groups);
     expect(hashReveals(r1)).toBe(hashReveals(r2));
-    const moved = buildReveals('2027', [person('a', 'g2'), person('b', 'g2')], groups).reveals;
+    const moved = buildReveals('2027', [person('a', 'g2'), person('b', 'g2')], groups);
     expect(publishStatus(hashReveals(r1), moved)).toBe('outdated');
     expect(publishStatus(hashReveals(r1), r1)).toBe('up-to-date');
     expect(publishStatus(null, r1)).toBe('never');
   });
 
+  it('un canvi de nom també obliga a tornar a publicar', () => {
+    const r1 = buildReveals('2027', [person('a', 'g1')], groups);
+    const renamed = buildReveals('2027', [{ ...person('a', 'g1'), name: 'Anna' }], groups);
+    expect(publishStatus(hashReveals(r1), renamed)).toBe('outdated');
+  });
+
   it('detecta revelacions que s’han d’esborrar', () => {
     const current = buildReveals('2027', [person('a', 'g1')], groups).reveals;
     expect(staleRevealTokens(['tok_a', 'tok_vell'], current)).toEqual(['tok_vell']);
+  });
+});
+
+describe('companys que ja han contestat', () => {
+  it('marca només els membres amb grup que tenen resposta', () => {
+    const ps = [person('a', 'g1'), person('b', 'g1'), person('c')];
+    const build = buildReveals('2027', ps, groups);
+    const done = new Map<string, number | null>([['tok_a', 100], ['tok_c', 50]]);
+    expect(answeredKeys('2027', ps, done, build)).toEqual({ [memberKey('2027', 'a')]: 100 });
+  });
+
+  it('ordena per ordre d’arribada', () => {
+    const sorted = sortRevealedMates([
+      { name: 'Bernat', answeredAt: 2 },
+      { name: 'Carla', answeredAt: 1 },
+      { name: 'Anna', answeredAt: 2 },
+    ]);
+    expect(sorted.map((m) => m.name)).toEqual(['Carla', 'Anna', 'Bernat']);
   });
 });
 

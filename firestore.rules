@@ -65,5 +65,21 @@ service cloud.firestore {
     match /reveals/{token} {
       allow get: if exists(/databases/$(database)/documents/responses/$(token));
     }
+
+    // Companys que ja han contestat. La clau d'un membre només la coneixen ell i els seus
+    // companys de grup (ve a la revelació). L'admin crea els docs en publicar.
+    // - mateStatus: només diu SI ha contestat (sense nom). Es pot escoltar en temps real.
+    // - mateCards: el nom, que només es pot llegir un cop ha contestat.
+    match /mateStatus/{key} {
+      allow get: if true;
+      // el participant es marca com a contestat una sola vegada, amb l'hora del servidor
+      allow update: if resource.data.get('answeredAt', null) == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answeredAt'])
+        && request.resource.data.answeredAt == request.time;
+    }
+
+    match /mateCards/{key} {
+      allow get: if get(/databases/$(database)/documents/mateStatus/$(key)).data.get('answeredAt', null) != null;
+    }
   }
 }

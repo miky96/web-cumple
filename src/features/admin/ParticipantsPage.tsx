@@ -111,7 +111,7 @@ function ParticipantRow({ repo, p, nights, groups, done }: { repo: Repo; p: Part
               title="Esborrar la resposta (podrà tornar a jugar)"
               onClick={async () =>
                 (await askConfirm({ title: 'RESET?', message: `Esborrar la resposta de ${p.name}? Podrà tornar a fer el qüestionari.`, confirmLabel: 'Esborrar resposta', danger: true })) &&
-                repo.resetResponse(p.token)
+                repo.resetResponse(EDITION_ID, p)
               }
             >
               ⟲

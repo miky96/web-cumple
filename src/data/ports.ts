@@ -8,10 +8,12 @@ import type {
   Edition,
   Group,
   Invite,
+  MateCard,
   Participant,
   PublicEdition,
   QuizResponse,
   Reveal,
+  RevealedMate,
 } from '../domain/types';
 
 export type Unsubscribe = () => void;
@@ -25,6 +27,19 @@ export interface PublicRepo {
   watchPublicEdition(editionId: string, cb: (e: PublicEdition | null) => void): Unsubscribe;
   /** null si encara no s'ha publicat (o no hi ha permís perquè no s'ha respost). */
   getReveal(token: string): Promise<Reveal | null>;
+  /** Marca que aquest membre ja ha contestat (els companys el començaran a veure). Idempotent. */
+  markAnswered(selfKey: string): Promise<void>;
+  /** Escolta quins companys ja han contestat i en retorna el nom, per ordre d'arribada. */
+  watchRevealedMates(mateKeys: string[], cb: (mates: RevealedMate[]) => void): Unsubscribe;
+}
+
+export interface Publication {
+  reveals: Record<string, Reveal>;
+  cards: Record<string, MateCard>;
+  /** Qui ja havia contestat abans de publicar: clau → instant (ms). */
+  answered: Record<string, number>;
+  staleTokens: string[];
+  hash: string;
 }
 
 export interface AdminUser {
@@ -61,11 +76,7 @@ export interface AdminRepo {
   saveGroup(editionId: string, g: Group): Promise<void>;
   deleteGroup(editionId: string, groupId: string, memberIds: string[]): Promise<void>;
 
-  publishReveals(
-    editionId: string,
-    reveals: Record<string, Reveal>,
-    staleTokens: string[],
-    hash: string,
-  ): Promise<void>;
-  resetResponse(token: string): Promise<void>;
+  publishReveals(editionId: string, pub: Publication): Promise<void>;
+  /** Esborra la resposta i torna a amagar el participant als seus companys. */
+  resetResponse(editionId: string, p: Participant): Promise<void>;
 }
