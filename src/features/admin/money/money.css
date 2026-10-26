@@ -1,0 +1,265 @@
+/* ---- Diners ---- */
+.money-stats .stat b {
+  font-size: 1.35rem;
+}
+.neg {
+  color: var(--danger);
+}
+.pos {
+  color: var(--success);
+}
+.warn {
+  color: #f0a030;
+}
+.strong {
+  font-weight: 800;
+}
+.num,
+.grid td.num,
+.grid th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.grid input.cell.num {
+  text-align: right;
+}
+.invalid,
+.grid input.cell.invalid,
+.grid select.cell.invalid {
+  border-color: var(--danger) !important;
+}
+
+.money-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin: 0 0 16px;
+  border-bottom: var(--border);
+}
+.money-tabs a {
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  color: var(--muted);
+  font-weight: 800;
+  text-decoration: none;
+  margin-bottom: -1px;
+}
+.money-tabs a:hover {
+  color: var(--ink);
+}
+.money-tabs a[aria-current='page'] {
+  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--stroke);
+  border-bottom: 1px solid var(--surface);
+}
+
+.money-grid {
+  min-width: 860px;
+}
+.money-grid tfoot td {
+  font-weight: 800;
+  border-top: 2px solid var(--stroke);
+  border-bottom: none;
+}
+.money-grid tr.row-open td {
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+.money-grid tr.row-detail td {
+  background: var(--field);
+}
+.name-btn {
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+  text-align: left;
+}
+.detail-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 24px;
+  padding: 6px 8px 10px;
+}
+.detail-cols h4 {
+  margin: 4px 0 6px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0;
+  border-bottom: 1px dashed var(--line);
+  font-size: 0.92rem;
+}
+.kv b {
+  font-variant-numeric: tabular-nums;
+}
+
+.money-status {
+  font-weight: 800;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+.st-pendent {
+  color: var(--danger);
+}
+.st-parcial {
+  color: #f0a030;
+}
+.st-pagat {
+  color: var(--success);
+}
+.st-a-retornar {
+  color: var(--accent);
+}
+.st-sense-carrec {
+  color: var(--muted);
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.chip-btn {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--field);
+  color: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+.chip-btn.on {
+  border-color: currentColor;
+  background: color-mix(in srgb, currentColor 14%, var(--field));
+}
+
+.input.input-sm,
+select.input-sm {
+  min-height: 34px;
+  padding: 4px 8px;
+  width: auto;
+}
+
+.money-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.money-form .input {
+  width: auto;
+  min-height: 40px;
+  flex: 0 1 180px;
+}
+.money-form .input.num {
+  flex-basis: 120px;
+}
+.money-form .input.grow {
+  flex: 1 1 240px;
+}
+.money-form .form-hint {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.scope-editor {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.scope-editor > select {
+  flex: 1 1 130px;
+}
+.scope-editor > input {
+  flex: 1 1 140px;
+}
+.scope-people summary {
+  cursor: pointer;
+  padding: 4px 8px;
+  font-weight: 700;
+}
+.scope-people-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 2px 10px;
+  max-height: 220px;
+  overflow: auto;
+  padding: 6px 8px;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.scope-people-list label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+.bar span {
+  display: block;
+  height: 100%;
+  background: var(--success);
+}
+.bar.over span {
+  background: var(--danger);
+}
+
+.pricing-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  align-self: flex-start;
+}
+.seg label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.seg label.on {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+.seg input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.import-issues ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 0.9rem;
+}
+.nowrap {
+  white-space: nowrap;
+}

@@ -8,6 +8,7 @@ import {
 } from 'firebase/auth';
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -37,9 +38,11 @@ import type {
   RevealedMate,
 } from '../../domain/types';
 import { memberKey, sortRevealedMates } from '../../domain/groups/reveals';
+import { normalizeLine, normalizePricing } from '../../domain/money/defaults';
+import type { Pricing } from '../../domain/money/types';
 import { newEdition, newGroups, newPublicEdition, normalizePublicEdition } from '../defaults';
 import { reportRepoError } from '../errors';
-import type { AdminRepo, AdminUser, Publication, PublicRepo, ResponseWithToken, Unsubscribe } from '../ports';
+import type { AdminRepo, AdminUser, MoneyCol, MoneyCollections, MoneyRepo, Publication, PublicRepo, ResponseWithToken, Unsubscribe } from '../ports';
 import { getFirebaseApp } from './firebaseApp';
 
 const toMillis = (v: unknown): number | null => (v instanceof Timestamp ? v.toMillis() : typeof v === 'number' ? v : null);
@@ -49,7 +52,7 @@ function clean<T extends object>(obj: T): DocumentData {
   return JSON.parse(JSON.stringify(obj)) as DocumentData;
 }
 
-export class FirestoreRepo implements PublicRepo, AdminRepo {
+export class FirestoreRepo implements PublicRepo, AdminRepo, MoneyRepo {
   private readonly db: Firestore;
 
   constructor() {
@@ -69,6 +72,8 @@ export class FirestoreRepo implements PublicRepo, AdminRepo {
   private personRef = (id: string) => doc(this.db, 'people', id);
   private mateStatusRef = (k: string) => doc(this.db, 'mateStatus', k);
   private mateCardRef = (k: string) => doc(this.db, 'mateCards', k);
+  private moneyCol = (e: string, col: MoneyCol) => collection(this.db, 'editions', e, col);
+  private pricingRef = (e: string) => doc(this.db, 'editions', e, 'money', 'pricing');
 
   // ---------- PublicRepo ----------
   async getInvite(token: string): Promise<Invite | null> {
@@ -373,5 +378,44 @@ export class FirestoreRepo implements PublicRepo, AdminRepo {
     batch.delete(this.responseRef(p.token));
     batch.set(this.mateStatusRef(memberKey(editionId, p.id)), { editionId, answeredAt: null }, { merge: true });
     await batch.commit();
+  }
+
+  // ---------- Diners ----------
+  watchMoney<K extends MoneyCol>(editionId: string, col: K, cb: (docs: MoneyCollections[K][]) => void): Unsubscribe {
+    return onSnapshot(
+      this.moneyCol(editionId, col),
+      (qs) =>
+        cb(
+          qs.docs.map((d) =>
+            col === 'budgetLines' ? normalizeLine(d.id, d.data()) : { ...d.data(), id: d.id },
+          ) as MoneyCollections[K][],
+        ),
+      reportRepoError,
+    );
+  }
+
+  async saveMoneyDocs<K extends MoneyCol>(editionId: string, col: K, docs: MoneyCollections[K][]): Promise<void> {
+    // Firestore limita els lots a 500 operacions
+    for (let i = 0; i < docs.length; i += 450) {
+      const batch = writeBatch(this.db);
+      for (const d of docs.slice(i, i + 450)) {
+        const { id, ...data } = d;
+        batch.set(doc(this.moneyCol(editionId, col), id), clean(data));
+      }
+      await batch.commit();
+    }
+  }
+
+  async deleteMoneyDoc(editionId: string, col: MoneyCol, id: string): Promise<void> {
+    await deleteDoc(doc(this.moneyCol(editionId, col), id));
+  }
+
+  watchPricing(editionId: string, cb: (p: Pricing) => void): Unsubscribe {
+    return onSnapshot(this.pricingRef(editionId), (s) => cb(normalizePricing(s.exists() ? (s.data() as Partial<Pricing>) : null)), reportRepoError);
+  }
+
+  async savePricing(editionId: string, patch: Partial<Pricing>): Promise<void> {
+    // mergeFields: cada camp es substitueix sencer (si no, els mapes es fusionarien i no es podria esborrar una clau)
+    await setDoc(this.pricingRef(editionId), clean(patch), { mergeFields: Object.keys(patch) });
   }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QuizStep } from '../types';
-import { createStep, defaultQuiz, STEP_CATALOG, STEP_TYPES } from './catalog';
+import { createStep, defaultQuiz, normalizeQuizSteps, STEP_CATALOG, STEP_TYPES } from './catalog';
 import { currentStepIndex, isQuizComplete, progressFraction, sanitizeAnswers } from './progress';
 import { validateAnswer } from './validate';
 
@@ -35,9 +35,20 @@ describe('validateAnswer', () => {
     expect(validateAnswer(s, Number.NaN)).not.toBeNull();
   });
 
-  it('accepta reaction sense temps (massa impacient)', () => {
-    const s = createStep('reaction', 'r') as QuizStep;
-    expect(validateAnswer(s, { ms: null, earlyTaps: 3 })).toBeNull();
+  it('valida compta personatges', () => {
+    const s = createStep('count-characters', 'k') as QuizStep;
+    expect(validateAnswer(s, { guess: 4, actual: 6 })).toBeNull();
+    expect(validateAnswer(s, { guess: -1, actual: 6 })).not.toBeNull();
+    expect(validateAnswer(s, { ms: 200 })).not.toBeNull();
+  });
+
+  it('migra el minijoc de reflexos antic i descarta tipus desconeguts', () => {
+    const old = [createStep('choice', 'a'), { id: 'r', type: 'reaction', title: 'x', config: {} }, { id: 'z', type: 'nope' }, null];
+    const steps = normalizeQuizSteps(old);
+    expect(steps.map((s) => [s.id, s.type])).toEqual([
+      ['a', 'choice'],
+      ['r-count', 'count-characters'],
+    ]);
   });
 
   it('totes les configuracions per defecte del catàleg són coherents', () => {

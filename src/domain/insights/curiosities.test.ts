@@ -6,22 +6,23 @@ import { describeAnswer, minigameRankings } from './curiosities';
 const steps: QuizStep[] = [
   createStep('choice', 'c'),
   createStep('stop-the-clock', 't'),
-  createStep('reaction', 'r'),
+  createStep('count-characters', 'r'),
   createStep('tap-race', 'x'),
 ];
 
 const people = [
-  { name: 'Anna', answers: { t: { targetMs: 5000, elapsedMs: 5300, deltaMs: 300 }, r: { ms: 280, earlyTaps: 0 }, x: { taps: 30, durationMs: 5000 } } },
-  { name: 'Bernat', answers: { t: { targetMs: 5000, elapsedMs: 4950, deltaMs: -50 }, r: { ms: null, earlyTaps: 3 }, x: { taps: 41, durationMs: 5000 } } },
+  { name: 'Anna', answers: { t: { targetMs: 5000, elapsedMs: 5300, deltaMs: 300 }, r: { guess: 9, actual: 7 }, x: { taps: 30, durationMs: 5000 } } },
+  { name: 'Bernat', answers: { t: { targetMs: 5000, elapsedMs: 4950, deltaMs: -50 }, r: { guess: 7, actual: 7 }, x: { taps: 41, durationMs: 5000 } } },
   { name: 'Carla', answers: {} },
 ];
 
 describe('minigameRankings', () => {
   it('ordena cada minijoc del millor al pitjor i ignora qui no hi ha jugat', () => {
-    const [stop, reaction, taps] = minigameRankings(steps, people);
+    const [stop, count, taps] = minigameRankings(steps, people);
     expect(stop.entries.map((e) => e.name)).toEqual(['Bernat', 'Anna']);
     expect(stop.entries[0].value).toBe('−0,05 s');
-    expect(reaction.entries.map((e) => e.name)).toEqual(['Anna']);
+    expect(count.entries.map((e) => e.name)).toEqual(['Bernat', 'Anna']);
+    expect(count.entries.map((e) => e.value)).toEqual(['exacte (7)', '+2 (9 de 7)']);
     expect(taps.entries.map((e) => e.name)).toEqual(['Bernat', 'Anna']);
   });
 
@@ -33,7 +34,7 @@ describe('minigameRankings', () => {
 describe('describeAnswer', () => {
   it('tradueix ids d’opcions a etiquetes', () => {
     expect(describeAnswer(steps[0], ['b'])).toBe('Fer de DJ');
-    expect(describeAnswer(steps[2], { ms: null, earlyTaps: 3 })).toMatch(/impacient/);
+    expect(describeAnswer(steps[2], { guess: 5, actual: 7 })).toBe('ha dit 5, eren 7');
     expect(describeAnswer(steps[1], undefined)).toBe('—');
   });
 });

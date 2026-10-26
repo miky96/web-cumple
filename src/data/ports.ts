@@ -2,6 +2,7 @@
  * Ports (interfícies) de dades. La UI només parla amb aquestes interfícies;
  * hi ha dues implementacions: Firestore (producció) i memòria (mode demo / proves).
  */
+import type { Adjustment, BudgetLine, Expense, Payment, Pricing } from '../domain/money/types';
 import type { ImportRow } from '../domain/people/importList';
 import type {
   Answers,
@@ -79,4 +80,24 @@ export interface AdminRepo {
   publishReveals(editionId: string, pub: Publication): Promise<void>;
   /** Esborra la resposta i torna a amagar el participant als seus companys. */
   resetResponse(editionId: string, p: Participant): Promise<void>;
+}
+
+// ---------- Diners ----------
+
+/** Col·leccions del mòdul de diners (subcol·leccions de `editions/{id}`). */
+export interface MoneyCollections {
+  budgetLines: BudgetLine;
+  expenses: Expense;
+  payments: Payment;
+  adjustments: Adjustment;
+}
+export type MoneyCol = keyof MoneyCollections;
+
+export interface MoneyRepo {
+  watchMoney<K extends MoneyCol>(editionId: string, col: K, cb: (docs: MoneyCollections[K][]) => void): Unsubscribe;
+  /** Crea o substitueix documents (en lots). */
+  saveMoneyDocs<K extends MoneyCol>(editionId: string, col: K, docs: MoneyCollections[K][]): Promise<void>;
+  deleteMoneyDoc(editionId: string, col: MoneyCol, id: string): Promise<void>;
+  watchPricing(editionId: string, cb: (p: Pricing) => void): Unsubscribe;
+  savePricing(editionId: string, patch: Partial<Pricing>): Promise<void>;
 }

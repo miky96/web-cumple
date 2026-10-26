@@ -88,7 +88,7 @@ Si canvies grups després de publicar, l'admin t'avisa que cal **tornar a public
 src/
   domain/        ← TypeScript pur, sense Firebase ni React. Aquí hi ha els tests.
     quiz/        catàleg de passos, validació, progrés
-    minigames/   lògica dels minijocs (rellotge, reflexos, tocs, memòria)
+    minigames/   lògica dels minijocs (rellotge, compta personatges, tocs, memòria)
     groups/      revelacions, hash de publicació, repartiment equilibrat
     theme/       paleta a partir del color base, contrast
     people/      importació de llistes

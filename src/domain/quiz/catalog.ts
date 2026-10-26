@@ -75,13 +75,13 @@ export const STEP_CATALOG: Catalog = {
     defaultTitle: 'Atura el rellotge just als 5 segons',
     defaultConfig: () => ({ targetMs: 5000, hideAfterMs: 2500 }),
   },
-  reaction: {
-    type: 'reaction',
-    label: 'Reflexos',
-    emoji: '⚡',
+  'count-characters': {
+    type: 'count-characters',
+    label: 'Compta personatges',
+    emoji: '🗿',
     isMinigame: true,
-    defaultTitle: 'Toca quan el tòtem canviï de color',
-    defaultConfig: () => ({ minDelayMs: 1500, maxDelayMs: 4500 }),
+    defaultTitle: 'Compta quants 🗿 passen. Només els 🗿!',
+    defaultConfig: () => ({ durationMs: 15000, target: '🗿', decoys: ['👾', '🦩', '🐙', '🍍', '🦜'], level: 2 }),
   },
   'tap-race': {
     type: 'tap-race',
@@ -109,6 +109,21 @@ export function createStep<T extends StepType>(type: T, id: string): QuizStepOf<
 }
 
 export function defaultQuiz(): QuizStep[] {
-  const types: StepType[] = ['profile', 'image-choice', 'stop-the-clock', 'choice', 'reaction', 'slider', 'tap-race'];
+  const types: StepType[] = ['profile', 'image-choice', 'stop-the-clock', 'choice', 'count-characters', 'slider', 'tap-race'];
   return types.map((t, i) => createStep(t, `s${i + 1}`) as QuizStep);
+}
+
+/**
+ * Passos guardats per versions anteriors de l'app: el minijoc de reflexos ('reaction') s'ha
+ * substituït per 'count-characters' (amb un id nou perquè les respostes antigues no s'hi barregin),
+ * i qualsevol altre tipus desconegut es descarta.
+ */
+export function normalizeQuizSteps(raw: readonly unknown[] | null | undefined): QuizStep[] {
+  return (raw ?? []).flatMap((s): QuizStep[] => {
+    if (typeof s !== 'object' || s === null) return [];
+    const step = s as { id?: unknown; type?: unknown };
+    if (typeof step.id !== 'string') return [];
+    if (step.type === 'reaction') return [createStep('count-characters', `${step.id}-count`) as QuizStep];
+    return typeof step.type === 'string' && step.type in STEP_CATALOG ? [s as QuizStep] : [];
+  });
 }

@@ -32,8 +32,8 @@ export function validateAnswer(step: QuizStep, value: unknown): string | null {
       return isNum(value) && value >= step.config.min && value <= step.config.max ? null : 'Valor fora de rang';
     case 'stop-the-clock':
       return isObj(value) && isNum(value.elapsedMs) && isNum(value.deltaMs) ? null : 'Joc no completat';
-    case 'reaction':
-      return isObj(value) && (value.ms === null || isNum(value.ms)) && isNum(value.earlyTaps) ? null : 'Joc no completat';
+    case 'count-characters':
+      return isObj(value) && isNum(value.guess) && value.guess >= 0 && isNum(value.actual) ? null : 'Joc no completat';
     case 'tap-race':
       return isObj(value) && isNum(value.taps) ? null : 'Joc no completat';
     case 'memory-sequence':

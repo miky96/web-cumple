@@ -45,7 +45,8 @@ export interface StepConfigs {
   'image-choice': { options: ImageOption[] };
   slider: { min: number; max: number; minLabel: string; maxLabel: string };
   'stop-the-clock': { targetMs: number; hideAfterMs: number | null };
-  reaction: { minDelayMs: number; maxDelayMs: number };
+  /** Compta personatges: `target` i `decoys` són emojis; `level` 1 (fàcil) a 3 (difícil). */
+  'count-characters': { durationMs: number; target: string; decoys: string[]; level: number };
   'tap-race': { durationMs: number };
   'memory-sequence': { levels: number; startLength: number };
 }
@@ -57,7 +58,7 @@ export interface StepAnswers {
   'image-choice': string;
   slider: number;
   'stop-the-clock': { targetMs: number; elapsedMs: number; deltaMs: number };
-  reaction: { ms: number | null; earlyTaps: number };
+  'count-characters': { guess: number; actual: number };
   'tap-race': { taps: number; durationMs: number };
   'memory-sequence': { levelReached: number; levels: number };
 }
