@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useLatest } from '../../../lib/hooks';
 import { evaluateStop, isClockHidden, stopTimeoutMs, type StopResult } from '../../../domain/minigames/stopTheClock';
-import { pickDelay, reactionRating, startReaction, tapReaction, type ReactionState } from '../../../domain/minigames/reaction';
+import { countRating, createCountRound, LANES, normalizeLevel, type CountRound } from '../../../domain/minigames/countCharacters';
 import { countTaps, tapRating } from '../../../domain/minigames/tapRace';
 import {
   createMemoryGame,
@@ -14,8 +14,7 @@ import {
 } from '../../../domain/minigames/memorySequence';
 import { formatSeconds, formatSignedSeconds } from '../../../domain/text';
 import { now, vibrate } from '../../../lib/device';
-import { Totem } from '../../../ui/brand';
-import { GameResult, StepShell, type StepProps } from './common';
+import { GameResult, NextButton, StepShell, type StepProps } from './common';
 
 /** Requisit: estat que s'actualitza cada frame mentre `active`. */
 function useFrame(active: boolean, onFrame: (t: number) => void) {
@@ -93,69 +92,121 @@ export function StopClockStep({ step, onSubmit }: StepProps<'stop-the-clock'>) {
   );
 }
 
-// ======================= Reflexos =======================
+// ======================= Compta personatges =======================
 
-export function ReactionStep({ step, onSubmit }: StepProps<'reaction'>) {
-  const { minDelayMs, maxDelayMs } = step.config;
-  const [state, setState] = useState<ReactionState | null>(null);
-  const [go, setGo] = useState(false);
-  const [warn, setWarn] = useState(false);
-  const timer = useRef<number>(0);
+export function CountCharactersStep({ step, onSubmit }: StepProps<'count-characters'>) {
+  const { durationMs } = step.config;
+  const target = step.config.target.trim() || '🗿';
+  const decoys = step.config.decoys.filter((d) => d && d !== target);
+  const level = normalizeLevel(step.config.level);
+  const [phase, setPhase] = useState<'intro' | 'countdown' | 'running' | 'answer' | 'done'>('intro');
+  const [count, setCount] = useState(3);
+  const [round, setRound] = useState<CountRound | null>(null);
+  const [guess, setGuess] = useState(0);
 
-  const schedule = (s: ReactionState) => {
-    window.clearTimeout(timer.current);
-    if (s.phase !== 'waiting') return;
-    setGo(false);
-    timer.current = window.setTimeout(() => {
-      setGo(true);
-      vibrate(30);
-    }, Math.max(0, s.goAt - now()));
+  useEffect(() => {
+    if (phase !== 'countdown') return;
+    const id = window.setTimeout(() => {
+      if (count > 1) return setCount((c) => c - 1);
+      setRound(createCountRound(Math.random, durationMs, level, decoys.length));
+      setPhase('running');
+      vibrate(50);
+    }, 700);
+    return () => window.clearTimeout(id);
+  }, [phase, count]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (phase !== 'running' || !round) return;
+    const id = window.setTimeout(() => {
+      setPhase('answer');
+      vibrate([60, 60, 60]);
+    }, round.totalMs);
+    return () => window.clearTimeout(id);
+  }, [phase, round]);
+
+  const bump = (d: number) => {
+    setGuess((g) => Math.max(0, Math.min(99, g + d)));
+    vibrate(10);
   };
 
-  useEffect(() => () => window.clearTimeout(timer.current), []);
-
-  const delay = () => pickDelay(Math.random, minDelayMs, maxDelayMs);
-
-  const onPad = () => {
-    if (!state) {
-      const s = startReaction(now(), delay());
-      setState(s);
-      schedule(s);
-      return;
-    }
-    if (state.phase === 'done') return;
-    const next = tapReaction(state, now(), delay());
-    setState(next);
-    if (next.phase === 'waiting') {
-      setWarn(true);
-      vibrate([80, 40, 80]);
-      window.setTimeout(() => setWarn(false), 600);
-      schedule(next);
-    } else window.clearTimeout(timer.current);
-  };
-
-  if (state?.phase === 'done')
+  if (phase === 'done' && round)
     return (
       <StepShell kicker="Minijoc" title={step.title}>
         <GameResult
-          headline={state.ms === null ? '😬' : `${state.ms} ms`}
-          detail={state.earlyTaps > 0 ? `T'has precipitat ${state.earlyTaps} ${state.earlyTaps === 1 ? 'vegada' : 'vegades'}` : undefined}
-          rating={reactionRating(state.ms)}
-          onNext={() => onSubmit({ ms: state.ms, earlyTaps: state.earlyTaps })}
+          headline={`${round.actual} ${target}`}
+          detail={guess === round.actual ? `Has dit ${guess}. Clavat!` : `Has dit ${guess}`}
+          rating={countRating(guess, round.actual)}
+          onNext={() => onSubmit({ guess, actual: round.actual })}
         />
+      </StepShell>
+    );
+
+  if (phase === 'answer')
+    return (
+      <StepShell kicker="Minijoc" title={step.title}>
+        <div className="game">
+          <div className="game-hint">Quants {target} han passat?</div>
+          <div className="count-stepper">
+            <button type="button" className="btn btn-ghost" onClick={() => bump(-1)} disabled={guess === 0} aria-label="Un menys">−</button>
+            <div className="game-big">{guess}</div>
+            <button type="button" className="btn btn-ghost" onClick={() => bump(1)} aria-label="Un més">+</button>
+          </div>
+          <div className="step-actions" style={{ width: '100%' }}>
+            <NextButton label="Confirmar" onClick={() => setPhase('done')} />
+          </div>
+        </div>
       </StepShell>
     );
 
   return (
     <StepShell kicker="Minijoc" title={step.title}>
       <div className="game">
-        <button type="button" className={`game-pad ${go ? 'go' : ''} ${warn ? 'warn' : ''}`} onPointerDown={onPad}>
-          <Totem height={150} className="totem-eyes" />
-          <div className="game-big" style={{ fontSize: 'clamp(1.1rem, 6vw, 1.5rem)' }}>
-            {!state ? 'Ready?' : warn ? 'Massa aviat!' : go ? 'ARA!' : 'Espera...'}
-          </div>
-          <div className="game-hint">{!state ? 'Toca per començar' : go ? 'Toca!' : 'Quan canviï de color, toca'}</div>
-        </button>
+        {phase === 'intro' && (
+          <>
+            <div className="count-target">{target}</div>
+            <div className="game-hint">Compta només aquest</div>
+            {decoys.length > 0 && <div className="muted small">Ignora: {decoys.join(' ')}</div>}
+            <button type="button" className="btn btn-block" onClick={() => { setCount(3); setPhase('countdown'); }}>
+              Començar
+            </button>
+          </>
+        )}
+        {phase === 'countdown' && (
+          <>
+            <div className="count-target">{target}</div>
+            <div className="game-big">{count}</div>
+          </>
+        )}
+        {phase === 'running' && round && (
+          <>
+            <div className="count-hud">
+              <span className="game-hint">Compta:</span> <span className="count-hud-target">{target}</span>
+            </div>
+            <div className="count-timer" style={{ '--total': `${round.totalMs}ms` } as CSSProperties}>
+              <i />
+            </div>
+            <div className="count-arena" aria-hidden>
+              {round.spawns.map((s, i) => (
+                <div
+                  key={i}
+                  className="count-sprite"
+                  style={
+                    {
+                      top: `${((s.lane + 0.5) / LANES) * 100}%`,
+                      '--cross': `${round.crossMs}ms`,
+                      animationDelay: `${s.at}ms`,
+                      animationDirection: s.leftToRight ? 'normal' : 'reverse',
+                    } as CSSProperties
+                  }
+                >
+                  <span>
+                    <span className="count-hop">{s.isTarget ? target : decoys[s.decoy]}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </StepShell>
   );

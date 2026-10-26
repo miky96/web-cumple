@@ -1,6 +1,6 @@
-import type { AdminRepo, PublicRepo } from './ports';
+import type { AdminRepo, MoneyRepo, PublicRepo } from './ports';
 
-export type Repo = PublicRepo & AdminRepo;
+export type Repo = PublicRepo & AdminRepo & MoneyRepo;
 
 export const EDITION_ID: string = import.meta.env.VITE_EDITION_ID ?? '2027';
 export const IS_DEMO: boolean = import.meta.env.VITE_DEMO === '1';

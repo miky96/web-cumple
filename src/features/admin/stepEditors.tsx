@@ -1,4 +1,5 @@
-import type { ComponentType } from 'react';
+import { useState, type ComponentType } from 'react';
+import { normalizeLevel, parseEmojiList } from '../../domain/minigames/countCharacters';
 import { slugId } from '../../domain/text';
 import type { StepConfigs, StepType } from '../../domain/types';
 
@@ -125,12 +126,36 @@ const StopEditor = ({ config, onChange }: EditorProps<'stop-the-clock'>) => (
   </div>
 );
 
-const ReactionEditor = ({ config, onChange }: EditorProps<'reaction'>) => (
-  <div className="two-col">
-    <NumField label="Espera mínima (s)" step={0.5} min={0.5} value={config.minDelayMs / 1000} onChange={(s) => onChange({ ...config, minDelayMs: Math.round(s * 1000) })} />
-    <NumField label="Espera màxima (s)" step={0.5} min={1} value={config.maxDelayMs / 1000} onChange={(s) => onChange({ ...config, maxDelayMs: Math.round(s * 1000) })} />
-  </div>
-);
+function CountEditor({ config, onChange }: EditorProps<'count-characters'>) {
+  // Text local perquè es pugui escriure l'espai entre emojis sense que es perdi
+  const [decoysText, setDecoysText] = useState(config.decoys.join(' '));
+  return (
+    <div className="two-col">
+      <NumField label="Durada (segons)" min={5} value={config.durationMs / 1000} onChange={(s) => onChange({ ...config, durationMs: Math.round(Math.max(5, s) * 1000) })} />
+      <label className="field">
+        <span>Dificultat</span>
+        <select className="select" value={normalizeLevel(config.level)} onChange={(e) => onChange({ ...config, level: Number(e.target.value) })}>
+          <option value={1}>Fàcil (lent, pocs alhora)</option>
+          <option value={2}>Normal</option>
+          <option value={3}>Difícil (ràpid, en grup)</option>
+        </select>
+      </label>
+      <TextField label="Personatge a comptar (emoji)" value={config.target} onChange={(target) => onChange({ ...config, target: target.trim() })} />
+      <label className="field">
+        <span>Despistadors (emojis separats per espais)</span>
+        <input
+          className="input"
+          value={decoysText}
+          placeholder="👾 🦩 🐙"
+          onChange={(e) => {
+            setDecoysText(e.target.value);
+            onChange({ ...config, decoys: parseEmojiList(e.target.value).filter((d) => d !== config.target) });
+          }}
+        />
+      </label>
+    </div>
+  );
+}
 
 const TapEditor = ({ config, onChange }: EditorProps<'tap-race'>) => (
   <NumField label="Durada (segons)" min={2} value={config.durationMs / 1000} onChange={(s) => onChange({ ...config, durationMs: Math.round(s * 1000) })} />
@@ -150,7 +175,7 @@ export const STEP_EDITORS: { [T in StepType]: ComponentType<EditorProps<T>> } = 
   'image-choice': ImageChoiceEditor,
   slider: SliderEditor,
   'stop-the-clock': StopEditor,
-  reaction: ReactionEditor,
+  'count-characters': CountEditor,
   'tap-race': TapEditor,
   'memory-sequence': MemoryEditor,
 };

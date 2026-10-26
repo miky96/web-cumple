@@ -76,6 +76,15 @@ describe('participant anònim', () => {
     await assertFails(getDoc(doc(anon(), 'editions', EDITION)));
   });
 
+  it('NO pot llegir ni escriure res dels diners', async () => {
+    for (const col of ['payments', 'expenses', 'budgetLines', 'adjustments']) {
+      await assertFails(getDocs(collection(anon(), 'editions', EDITION, col)));
+      await assertFails(setDoc(doc(anon(), 'editions', EDITION, col, 'x'), { amount: 1 }));
+      await assertFails(getDocs(collection(stranger(), 'editions', EDITION, col)));
+    }
+    await assertFails(getDoc(doc(anon(), 'editions', EDITION, 'money', 'pricing')));
+  });
+
   it('NO pot veure la revelació abans de respondre', async () => {
     await assertFails(getDoc(doc(anon(), 'reveals', TOKEN)));
   });

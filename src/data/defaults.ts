@@ -1,5 +1,5 @@
 import { defaultGroup } from '../domain/groups/assign';
-import { defaultQuiz } from '../domain/quiz/catalog';
+import { defaultQuiz, normalizeQuizSteps } from '../domain/quiz/catalog';
 import { DEFAULT_LOBBY, normalizeLobby } from '../domain/lobby/lobby';
 import { DEFAULT_THEME, normalizeTheme } from '../domain/theme/palette';
 import type { Edition, Group, PublicEdition } from '../domain/types';
@@ -40,7 +40,7 @@ export function normalizePublicEdition(id: string, data: Partial<PublicEdition>)
     id,
     title: data.title ?? '',
     theme: normalizeTheme(data.theme),
-    quizSteps: data.quizSteps ?? [],
+    quizSteps: normalizeQuizSteps(data.quizSteps),
     allowRetake: data.allowRetake ?? true,
     lobby: normalizeLobby(data.lobby),
   };

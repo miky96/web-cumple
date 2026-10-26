@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { seededRng } from '../random';
 import { evaluateStop, isClockHidden, stopRating } from './stopTheClock';
-import { MAX_EARLY_TAPS, pickDelay, startReaction, tapReaction } from './reaction';
+import { countRating, createCountRound, LANES, MIN_TARGETS, normalizeLevel, parseEmojiList } from './countCharacters';
 import { countTaps, tapRating } from './tapRace';
 import {
   createMemoryGame,
@@ -28,28 +28,45 @@ describe('stop-the-clock', () => {
   });
 });
 
-describe('reaction', () => {
-  it('pickDelay queda dins el rang', () => {
-    const rng = seededRng(1);
-    for (let i = 0; i < 100; i++) {
-      const d = pickDelay(rng, 1000, 4000);
-      expect(d).toBeGreaterThanOrEqual(1000);
-      expect(d).toBeLessThanOrEqual(4000);
+describe('count-characters', () => {
+  it('genera rondes jugables a tots els nivells', () => {
+    for (const level of [1, 2, 3] as const) {
+      for (let seed = 1; seed <= 30; seed++) {
+        const r = createCountRound(seededRng(seed), 15000, level, 5);
+        expect(r.actual).toBe(r.spawns.filter((s) => s.isTarget).length);
+        expect(r.actual).toBeGreaterThanOrEqual(MIN_TARGETS);
+        expect(r.spawns.every((s) => s.lane >= 0 && s.lane < LANES)).toBe(true);
+        expect(r.spawns.every((s) => s.isTarget || (s.decoy >= 0 && s.decoy < 5))).toBe(true);
+        // Ningú surt després de la durada configurada
+        expect(r.totalMs).toBeLessThanOrEqual(15000 + 300);
+      }
     }
   });
-  it('mesura el temps de reacció', () => {
-    const s = startReaction(0, 2000);
-    expect(tapReaction(s, 2250, 1000)).toEqual({ phase: 'done', ms: 250, earlyTaps: 0 });
+  it('no repeteix carril massa seguit', () => {
+    const r = createCountRound(seededRng(7), 20000, 3, 4);
+    const lastAt = new Map<number, number>();
+    for (const s of r.spawns) {
+      const prev = lastAt.get(s.lane);
+      if (prev !== undefined) expect(s.at - prev).toBeGreaterThanOrEqual(r.crossMs * 0.3 - 1);
+      lastAt.set(s.lane, s.at);
+    }
   });
-  it('penalitza tocar massa aviat i reprograma el senyal', () => {
-    const s1 = tapReaction(startReaction(0, 2000), 500, 1500);
-    expect(s1).toEqual({ phase: 'waiting', goAt: 2000, earlyTaps: 1 });
-    expect(tapReaction(s1, 2100, 0)).toEqual({ phase: 'done', ms: 100, earlyTaps: 1 });
+  it('sense despistadors tots són el personatge a comptar', () => {
+    const r = createCountRound(seededRng(3), 10000, 2, 0);
+    expect(r.spawns.every((s) => s.isTarget)).toBe(true);
   });
-  it('acaba sense temps després de massa precipitacions', () => {
-    let s = startReaction(0, 10_000);
-    for (let i = 0; i < MAX_EARLY_TAPS; i++) s = tapReaction(s, i, 10_000);
-    expect(s).toEqual({ phase: 'done', ms: null, earlyTaps: MAX_EARLY_TAPS });
+  it('el nivell difícil treu més personatges que el fàcil', () => {
+    const n = (level: 1 | 3) => createCountRound(seededRng(11), 20000, level, 4).spawns.length;
+    expect(n(3)).toBeGreaterThan(n(1));
+  });
+  it('valora segons la diferència', () => {
+    expect(countRating(7, 7)).toMatch(/EXACTE/);
+    expect(countRating(6, 7)).toMatch(/pèl/);
+    expect(countRating(20, 7)).toMatch(/ovelles/);
+  });
+  it('llegeix llistes d’emojis', () => {
+    expect(parseEmojiList(' 🗿 👾,🦩  ')).toEqual(['🗿', '👾', '🦩']);
+    expect(normalizeLevel(5)).toBe(2);
   });
 });
 

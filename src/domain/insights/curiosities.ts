@@ -31,9 +31,12 @@ function entryFor(step: QuizStep, raw: unknown): Omit<RankingEntry, 'name'> | nu
       const d = num(a.deltaMs);
       return d === null ? null : { value: formatSignedSeconds(d), score: Math.abs(d) };
     }
-    case 'reaction': {
-      const ms = num(a.ms);
-      return ms === null ? null : { value: `${ms} ms`, score: ms };
+    case 'count-characters': {
+      const g = num(a.guess);
+      const act = num(a.actual);
+      if (g === null || act === null) return null;
+      const d = g - act;
+      return { value: d === 0 ? `exacte (${act})` : `${d > 0 ? '+' : '−'}${Math.abs(d)} (${g} de ${act})`, score: Math.abs(d) };
     }
     case 'tap-race': {
       const taps = num(a.taps);
@@ -51,7 +54,7 @@ function entryFor(step: QuizStep, raw: unknown): Omit<RankingEntry, 'name'> | nu
 /** Rànquing per a cada minijoc (millor primer). Empats ordenats per nom. */
 export function minigameRankings(steps: readonly QuizStep[], people: readonly NamedAnswers[]): StepRanking[] {
   return steps
-    .filter((s) => ['stop-the-clock', 'reaction', 'tap-race', 'memory-sequence'].includes(s.type))
+    .filter((s) => ['stop-the-clock', 'count-characters', 'tap-race', 'memory-sequence'].includes(s.type))
     .map((s) => ({
       stepId: s.id,
       title: s.title,
@@ -89,9 +92,9 @@ export function describeAnswer(step: QuizStep, raw: unknown): string {
       const a = raw as Obj;
       return `${formatSeconds(num(a.elapsedMs) ?? 0)} (${formatSignedSeconds(num(a.deltaMs) ?? 0)})`;
     }
-    case 'reaction': {
+    case 'count-characters': {
       const a = raw as Obj;
-      return a.ms === null ? `massa impacient (${a.earlyTaps}×)` : `${a.ms} ms`;
+      return `ha dit ${a.guess}, eren ${a.actual}`;
     }
     case 'tap-race':
       return `${(raw as Obj).taps} tocs`;

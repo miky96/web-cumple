@@ -665,21 +665,6 @@ textarea {
   cursor: pointer;
   transition: background 0.08s;
 }
-.game-pad.go {
-  background: var(--primary);
-  color: var(--on-primary);
-  border-color: var(--primary);
-  box-shadow: var(--glow-primary);
-}
-.game-pad.go .game-big,
-.game-pad.go .game-hint {
-  color: var(--on-primary);
-  text-shadow: none;
-}
-.game-pad.warn {
-  background: color-mix(in srgb, var(--danger) 40%, var(--bg));
-  border-color: var(--danger);
-}
 .game-big {
   font-family: var(--font-pixel);
   font-size: clamp(1.6rem, 9vw, 2.4rem);
@@ -721,16 +706,6 @@ textarea {
 .tap-target.pulse {
   transform: translateY(6px);
 }
-.totem-eyes {
-  transition: transform 0.15s;
-}
-.go .totem-eyes {
-  transform: scale(1.12);
-}
-.go .inline-svg {
-  color: var(--on-primary);
-  filter: none;
-}
 
 .memory-grid {
   display: grid;
@@ -754,6 +729,103 @@ textarea {
 }
 .memory-pad:disabled {
   cursor: default;
+}
+
+/* Compta personatges */
+.count-target {
+  font-size: clamp(4rem, 26vw, 6rem);
+  line-height: 1;
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+.count-hud {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.count-hud-target {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+.count-timer {
+  width: 100%;
+  height: 6px;
+  background: var(--field);
+  overflow: hidden;
+}
+.count-timer > i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  box-shadow: var(--glow-accent);
+  transform-origin: left;
+  animation: countBar var(--total) linear forwards;
+}
+.count-arena {
+  position: relative;
+  width: 100%;
+  height: min(56vh, 380px);
+  overflow: hidden;
+  border: 2px solid var(--accent);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  box-shadow: inset 0 0 30px color-mix(in srgb, var(--accent) 22%, transparent), var(--glow-accent);
+}
+/* La fila ocupa tota l'amplada i es desplaça; l'emoji comença just fora per l'esquerra */
+.count-sprite {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 0;
+  pointer-events: none;
+  animation-name: countRun;
+  animation-duration: var(--cross);
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+.count-sprite > span {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-100%, -50%);
+  font-size: clamp(2.2rem, 11vw, 3rem);
+  line-height: 1;
+}
+.count-hop {
+  display: block;
+  animation: countHop 0.32s steps(2) infinite alternate;
+}
+.count-stepper {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+.count-stepper .btn {
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  font-size: 1.8rem;
+}
+.count-stepper .game-big {
+  min-width: 2.5ch;
+  font-size: clamp(2.4rem, 14vw, 3.4rem);
+}
+@keyframes countRun {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(100% + 4rem));
+  }
+}
+@keyframes countHop {
+  to {
+    transform: translateY(-6px);
+  }
+}
+@keyframes countBar {
+  to {
+    transform: scaleX(0);
+  }
 }
 
 .result-card {
@@ -1005,6 +1077,13 @@ textarea {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  /* Compta personatges no es pot jugar sense moviment */
+  .count-sprite {
+    animation-duration: var(--cross) !important;
+  }
+  .count-timer > i {
+    animation-duration: var(--total) !important;
   }
 }
 

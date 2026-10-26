@@ -9,6 +9,7 @@ import { useDocumentTheme } from '../../ui/ThemeScope';
 import './admin.css';
 import { GroupsPage } from './GroupsPage';
 import { LobbyPage } from './LobbyPage';
+import { MoneyPage } from './money/MoneyPage';
 import { ParticipantsPage } from './ParticipantsPage';
 import { QuizPage } from './QuizPage';
 import { ResponsesPage } from './ResponsesPage';
@@ -21,6 +22,7 @@ const SECTIONS = [
   { id: 'grups', label: 'Grups' },
   { id: 'questionari', label: 'Qüestionari' },
   { id: 'respostes', label: 'Respostes' },
+  { id: 'diners', label: 'Diners' },
   { id: 'configuracio', label: 'Tema i edició' },
 ] as const;
 
@@ -129,6 +131,8 @@ function AdminShell({ repo, user, path }: { repo: Repo; user: AdminUser; path: s
           <QuizPage repo={repo} data={data} />
         ) : section === 'respostes' ? (
           <ResponsesPage data={data} />
+        ) : section === 'diners' ? (
+          <MoneyPage repo={repo} data={data} path={path} />
         ) : section === 'portada' ? (
           <LobbyPage repo={repo} data={data} />
         ) : section === 'configuracio' ? (

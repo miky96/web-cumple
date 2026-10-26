@@ -5,7 +5,9 @@
 import { generateToken } from '../../domain/tokens';
 import { slugId } from '../../domain/text';
 import type { Answers, Edition, Group, Invite, MateCard, Participant, PublicEdition, QuizResponse, Reveal, RevealedMate } from '../../domain/types';
-import type { AdminRepo, AdminUser, Publication, PublicRepo, ResponseWithToken, Unsubscribe } from '../ports';
+import type { AdminRepo, AdminUser, MoneyCol, MoneyCollections, MoneyRepo, Publication, PublicRepo, ResponseWithToken, Unsubscribe } from '../ports';
+import { defaultBudgetLines, DEFAULT_PRICING, normalizePricing } from '../../domain/money/defaults';
+import type { Pricing } from '../../domain/money/types';
 import { newEdition, newGroups, newPublicEdition, normalizePublicEdition } from '../defaults';
 import { buildReveals, hashReveals, memberKey, sortRevealedMates } from '../../domain/groups/reveals';
 import { buildAttendance } from '../../domain/lobby/lobby';
@@ -24,10 +26,31 @@ interface Store {
   mateCards: Record<string, MateCard>;
   /** clau → instant en què va contestar (null = encara no). */
   mateStatus: Record<string, number | null>;
+  money: Record<string, MoneyStore>;
   user: AdminUser | null;
 }
 
-const KEY = 'web-cumple-demo-store-v5';
+type MoneyStore = { [K in MoneyCol]: Record<string, MoneyCollections[K]> } & { pricing: Pricing };
+
+const emptyMoney = (): MoneyStore => ({ budgetLines: {}, expenses: {}, payments: {}, adjustments: {}, pricing: clone(DEFAULT_PRICING) });
+
+/** Demo: un pressupost a mig fer, amb paga i senyal d'alguns participants i les primeres compres. */
+function seedMoney(people: Participant[]): MoneyStore {
+  const m = emptyMoney();
+  const planned: Record<string, number> = { casa: 1800_00, menjar: 450_00, alcohol: 250_00, activitats: 90_00 };
+  for (const l of defaultBudgetLines()) m.budgetLines[l.id] = { ...l, planned: planned[l.id] ?? 0 };
+  m.pricing = { ...m.pricing, mode: 'announced', announced: { '1': 120_00, '2': 190_00 } };
+  const add = <K extends MoneyCol>(col: K, d: MoneyCollections[K]) => ((m[col] as Record<string, MoneyCollections[K]>)[d.id] = d);
+  add('expenses', { id: 'e1', date: '2026-10-05', concept: 'Paga i senyal de la casa', amount: 800_00, lineId: 'casa', paidBy: 'organizer', note: '' });
+  add('expenses', { id: 'e2', date: '2026-10-20', concept: 'Llums i garlandes', amount: 34_90, lineId: 'activitats', paidBy: 'organizer', note: 'Amazon' });
+  add('expenses', { id: 'e3', date: '2026-10-22', concept: 'Ampolles de gin', amount: 64_50, lineId: 'alcohol', paidBy: people[1]?.id ?? 'organizer', note: '' });
+  people.slice(0, 12).forEach((p, i) =>
+    add('payments', { id: `pay${i}`, participantId: p.id, amount: i % 3 === 0 ? 190_00 : 50_00, date: `2026-10-${String(10 + i).padStart(2, '0')}`, method: i % 4 === 0 ? 'transferencia' : 'bizum', note: i % 3 === 0 ? '' : 'Paga i senyal' }),
+  );
+  return m;
+}
+
+const KEY = 'web-cumple-demo-store-v6';
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 const delay = (ms = 120) => new Promise((r) => setTimeout(r, ms));
 
@@ -70,6 +93,7 @@ function seed(editionId: string): Store {
     reveals: {},
     mateCards: {},
     mateStatus: {},
+    money: { [editionId]: seedMoney(Object.values(participants)) },
     user: null,
   };
   // demo: portada activa amb compte enrere de 3 dies
@@ -86,7 +110,7 @@ function seed(editionId: string): Store {
   return store;
 }
 
-export class MemoryRepo implements PublicRepo, AdminRepo {
+export class MemoryRepo implements PublicRepo, AdminRepo, MoneyRepo {
   private store: Store;
   private listeners = new Set<() => void>();
 
@@ -295,6 +319,31 @@ export class MemoryRepo implements PublicRepo, AdminRepo {
   async resetResponse(editionId: string, p: Participant) {
     delete this.store.responses[p.token];
     this.store.mateStatus[memberKey(editionId, p.id)] = null;
+    this.commit();
+  }
+
+  // ---------- Diners ----------
+  private moneyOf(editionId: string): MoneyStore {
+    return (this.store.money[editionId] ??= emptyMoney());
+  }
+  watchMoney<K extends MoneyCol>(editionId: string, col: K, cb: (docs: MoneyCollections[K][]) => void) {
+    return this.watch(() => Object.values(this.moneyOf(editionId)[col]) as MoneyCollections[K][], cb);
+  }
+  async saveMoneyDocs<K extends MoneyCol>(editionId: string, col: K, docs: MoneyCollections[K][]) {
+    const target = this.moneyOf(editionId)[col] as Record<string, MoneyCollections[K]>;
+    for (const d of docs) target[d.id] = clone(d);
+    this.commit();
+  }
+  async deleteMoneyDoc(editionId: string, col: MoneyCol, id: string) {
+    delete this.moneyOf(editionId)[col][id];
+    this.commit();
+  }
+  watchPricing(editionId: string, cb: (p: Pricing) => void) {
+    return this.watch(() => this.moneyOf(editionId).pricing, (p) => cb(normalizePricing(p)));
+  }
+  async savePricing(editionId: string, patch: Partial<Pricing>) {
+    const m = this.moneyOf(editionId);
+    m.pricing = { ...m.pricing, ...clone(patch) };
     this.commit();
   }
 
