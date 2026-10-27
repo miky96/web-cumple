@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { allocate } from './allocate';
+import { checkDrafts, draftsToPayments, type DraftPayment } from './batch';
 import { defaultBudgetLines, DEFAULT_PRICING } from './defaults';
 import { computeMoney, stayUnits } from './engine';
 import { parseDate, parseEuros } from './euros';
@@ -226,5 +227,31 @@ describe('importació des de l’Excel', () => {
       ['Globus', 800, 'activitats', 'organizer'],
     ]);
     expect(r.warnings).toHaveLength(1); // «Decoració» no existeix exactament
+  });
+});
+
+describe('diversos pagaments a la vegada', () => {
+  const row = (patch: Partial<DraftPayment>) => ({ key: 'k', participantId: '', amount: '', date: '2026-10-27', method: 'bizum' as const, note: '', ...patch });
+  it('ignora les files buides, avisa dels duplicats i converteix les vàlides', () => {
+    const rows = [row({ participantId: 'a', amount: '50' }), row({}), row({ participantId: 'b', amount: '20,5', note: ' senyal ' }), row({ participantId: 'a', amount: '10' })];
+    expect(checkDrafts(rows).map((c) => [c.status, c.duplicate])).toEqual([
+      ['ok', true],
+      ['empty', false],
+      ['ok', false],
+      ['ok', true],
+    ]);
+    let n = 0;
+    const r = draftsToPayments(rows, () => `p${n++}`);
+    expect(r.errors).toBe(0);
+    expect(r.payments.map((p) => [p.id, p.participantId, p.amount, p.note])).toEqual([
+      ['p0', 'a', 5000, ''],
+      ['p1', 'b', 2050, 'senyal'],
+      ['p2', 'a', 1000, ''],
+    ]);
+  });
+  it('si alguna fila té errors no desa res', () => {
+    const rows = [row({ participantId: 'a', amount: '50' }), row({ amount: '10' }), row({ participantId: 'b', amount: 'xx' })];
+    expect(checkDrafts(rows).map((c) => c.error)).toEqual([null, 'Falta la persona', 'Import no vàlid']);
+    expect(draftsToPayments(rows, () => 'x')).toEqual({ payments: [], errors: 2 });
   });
 });

@@ -263,3 +263,71 @@ select.input-sm {
 .nowrap {
   white-space: nowrap;
 }
+
+/* ---- Diversos pagaments a la vegada ---- */
+.batch {
+  margin-bottom: 16px;
+}
+.batch-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.batch-head h3 {
+  margin: 0;
+}
+.batch-defaults,
+.picker-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.batch-grid {
+  min-width: 820px;
+}
+.batch-grid tr.row-error td {
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+.batch-row-info {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+.batch-foot {
+  align-items: center;
+  gap: 12px;
+}
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px dashed var(--stroke);
+  border-radius: var(--radius-sm);
+  background: var(--field);
+}
+.picker-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 2px 12px;
+  max-height: 260px;
+  overflow: auto;
+}
+.picker-list label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.picker-list label.on {
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+.picker-list label .muted {
+  margin-left: auto;
+}

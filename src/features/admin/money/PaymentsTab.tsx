@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
 import { EDITION_ID } from '../../../data/repo';
 import { PAYMENT_METHOD_LABELS } from '../../../domain/money/defaults';
-import { formatEuros, formatEurosPlain, parseEuros, todayIso } from '../../../domain/money/euros';
+import { formatEuros, todayIso } from '../../../domain/money/euros';
 import { parsePaymentsPaste } from '../../../domain/money/importMoney';
 import type { Payment, PaymentMethod } from '../../../domain/money/types';
 import { slugId } from '../../../domain/text';
 import { askConfirm } from '../../../ui/confirm';
+import { BatchPayments } from './BatchPayments';
 import { EuroInput, PersonSelect, TextCell } from './fields';
 import { ImportBox } from './ImportBox';
 import type { MoneyTabProps } from './MoneyPage';
@@ -14,29 +15,15 @@ const METHODS = Object.entries(PAYMENT_METHOD_LABELS) as [PaymentMethod, string]
 
 export function PaymentsTab({ repo, data, money }: MoneyTabProps) {
   const [showImport, setShowImport] = useState(false);
-  const [person, setPerson] = useState('');
-  const [amount, setAmount] = useState('');
-  const [date, setDate] = useState(todayIso());
-  const [method, setMethod] = useState<PaymentMethod>('bizum');
-  const [note, setNote] = useState('');
+  const method: PaymentMethod = 'bizum';
   const [filter, setFilter] = useState('');
   const people = data.participants;
   const nameOf = new Map(people.map((p) => [p.id, p.name]));
-  const cents = parseEuros(amount);
   const save = (p: Payment) => repo.saveMoneyDocs(EDITION_ID, 'payments', [p]);
-
-  const add = async () => {
-    if (!person || cents === null || cents === 0) return;
-    await save({ id: slugId('pay'), participantId: person, amount: cents, date, method, note: note.trim() });
-    setPerson('');
-    setAmount('');
-    setNote('');
-  };
 
   const parse = useCallback((text: string) => parsePaymentsPaste(text, people, { today: todayIso(), defaultMethod: method }), [people, method]);
   const visible = money.payments.filter((p) => !filter || p.participantId === filter);
   const balanceOf = new Map(money.summary.people.map((s) => [s.id, s]));
-  const selected = person ? balanceOf.get(person) : undefined;
 
   return (
     <>
@@ -57,46 +44,7 @@ export function PaymentsTab({ repo, data, money }: MoneyTabProps) {
         />
       )}
 
-      <div className="card money-form">
-        <PersonSelect className="input" value={person} onChange={setPerson} people={people} placeholder="Qui ha pagat?" />
-        <input
-          className={`input num ${amount && cents === null ? 'invalid' : ''}`}
-          inputMode="decimal"
-          placeholder="Import €"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && add()}
-        />
-        <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        <select className="input" value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>
-          {METHODS.map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </select>
-        <input className="input" placeholder="Nota (paga i senyal...)" value={note} onChange={(e) => setNote(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
-        <button className="btn btn-sm" disabled={!person || !cents} onClick={add}>
-          + Apuntar pagament
-        </button>
-        {selected && (
-          <p className="muted small form-hint">
-            {selected.name}: a pagar {formatEuros(selected.due)}, pagat {formatEuros(selected.paid)} →{' '}
-            {selected.balance < 0 ? (
-              <>
-                falten <b>{formatEuros(-selected.balance)}</b>{' '}
-                <button className="link-btn" onClick={() => setAmount(formatEurosPlain(-selected.balance))}>
-                  (posar-ho)
-                </button>
-              </>
-            ) : selected.balance > 0 ? (
-              <>li has de tornar {formatEuros(selected.balance)}</>
-            ) : (
-              'ja està quadrat'
-            )}
-          </p>
-        )}
-      </div>
+      <BatchPayments repo={repo} people={people} balances={balanceOf} />
 
       <div className="admin-toolbar">
         <PersonSelect className="input input-sm" value={filter} onChange={setFilter} people={people} placeholder="Totes les persones" />
@@ -105,8 +53,8 @@ export function PaymentsTab({ repo, data, money }: MoneyTabProps) {
         </span>
         <div className="spacer" />
         {!showImport && (
-          <button className="btn btn-ghost btn-sm" onClick={() => setShowImport(true)}>
-            📋 Importar de l'Excel
+          <button className="btn btn-sm" onClick={() => setShowImport(true)}>
+            📋 Enganxar de l'Excel
           </button>
         )}
       </div>
