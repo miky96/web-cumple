@@ -374,10 +374,19 @@ export class FirestoreRepo implements PublicRepo, AdminRepo, MoneyRepo {
   }
 
   async resetResponse(editionId: string, p: Participant): Promise<void> {
-    const batch = writeBatch(this.db);
-    batch.delete(this.responseRef(p.token));
-    batch.set(this.mateStatusRef(memberKey(editionId, p.id)), { editionId, answeredAt: null }, { merge: true });
-    await batch.commit();
+    await this.resetResponses(editionId, [p]);
+  }
+
+  async resetResponses(editionId: string, ps: Participant[]): Promise<void> {
+    // 2 operacions per persona; Firestore limita els lots a 500
+    for (let i = 0; i < ps.length; i += 200) {
+      const batch = writeBatch(this.db);
+      for (const p of ps.slice(i, i + 200)) {
+        batch.delete(this.responseRef(p.token));
+        batch.set(this.mateStatusRef(memberKey(editionId, p.id)), { editionId, answeredAt: null }, { merge: true });
+      }
+      await batch.commit();
+    }
   }
 
   // ---------- Diners ----------

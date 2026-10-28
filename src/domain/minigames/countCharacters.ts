@@ -43,9 +43,9 @@ interface LevelParams {
 }
 
 export const LEVELS: Record<CountLevel, LevelParams> = {
-  1: { crossMs: 2600, gapMs: 750, targetShare: 0.4, burst: 0 },
-  2: { crossMs: 2000, gapMs: 480, targetShare: 0.32, burst: 0.2 },
-  3: { crossMs: 1500, gapMs: 320, targetShare: 0.28, burst: 0.35 },
+  1: { crossMs: 2200, gapMs: 650, targetShare: 0.4, burst: 0 },
+  2: { crossMs: 1600, gapMs: 400, targetShare: 0.3, burst: 0.25 },
+  3: { crossMs: 1100, gapMs: 250, targetShare: 0.25, burst: 0.45 },
 };
 
 export function normalizeLevel(n: unknown): CountLevel {

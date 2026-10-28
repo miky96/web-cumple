@@ -80,6 +80,8 @@ export interface AdminRepo {
   publishReveals(editionId: string, pub: Publication): Promise<void>;
   /** Esborra la resposta i torna a amagar el participant als seus companys. */
   resetResponse(editionId: string, p: Participant): Promise<void>;
+  /** Com `resetResponse`, però per a diverses persones de cop (ex. netejar respostes de prova). */
+  resetResponses(editionId: string, ps: Participant[]): Promise<void>;
 }
 
 // ---------- Diners ----------

@@ -130,7 +130,7 @@ function AdminShell({ repo, user, path }: { repo: Repo; user: AdminUser; path: s
         ) : section === 'questionari' ? (
           <QuizPage repo={repo} data={data} />
         ) : section === 'respostes' ? (
-          <ResponsesPage data={data} />
+          <ResponsesPage repo={repo} data={data} />
         ) : section === 'diners' ? (
           <MoneyPage repo={repo} data={data} path={path} />
         ) : section === 'portada' ? (

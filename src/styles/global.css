@@ -682,8 +682,10 @@ textarea {
   text-transform: uppercase;
 }
 .clock-hidden {
-  filter: blur(12px);
-  opacity: 0.35;
+  /* prou fort perquè no es pugui llegir el número (la font píxel és molt marcada) */
+  filter: blur(22px);
+  opacity: 0.25;
+  text-shadow: none;
 }
 /* Botó de recreativa per al minijoc de tocs */
 .tap-target {

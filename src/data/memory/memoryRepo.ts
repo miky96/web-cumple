@@ -317,8 +317,13 @@ export class MemoryRepo implements PublicRepo, AdminRepo, MoneyRepo {
     this.commit();
   }
   async resetResponse(editionId: string, p: Participant) {
-    delete this.store.responses[p.token];
-    this.store.mateStatus[memberKey(editionId, p.id)] = null;
+    await this.resetResponses(editionId, [p]);
+  }
+  async resetResponses(editionId: string, ps: Participant[]) {
+    for (const p of ps) {
+      delete this.store.responses[p.token];
+      this.store.mateStatus[memberKey(editionId, p.id)] = null;
+    }
     this.commit();
   }
 
