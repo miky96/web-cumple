@@ -47,8 +47,8 @@ export function levelReached(state: MemoryState): number {
 }
 
 export function memoryRating(reached: number, levels: number): string {
-  if (reached >= levels) return 'Memòria d\'elefant!';
-  if (reached >= Math.ceil(levels * 0.6)) return 'Molt bé!';
-  if (reached >= 1) return 'Has resistit una mica';
-  return 'Peix de colors';
+  if (reached >= levels) return 'Wow, wowiwo, increïble el nivell, no? D\'aquí al Nobel de la memòria!';
+  if (reached >= Math.ceil(levels * 0.6)) return 'No te\'n recordes mai de felicitar la gent, però d\'això sí, eeeh!';
+  if (reached >= 1) return 'Just justíssim: d\'aquí a l\'Alzheimer hi ha un pas';
+  return '... Penós. Sense comentaris.';
 }

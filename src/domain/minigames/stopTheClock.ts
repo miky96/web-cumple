@@ -7,11 +7,11 @@ export interface StopResult {
 }
 
 export function stopRating(absDeltaMs: number): string {
-  if (absDeltaMs <= 30) return 'PERFECTE! El tòtem està impressionat';
-  if (absDeltaMs <= 120) return 'Molt bé!';
-  if (absDeltaMs <= 350) return 'No està gens malament';
-  if (absDeltaMs <= 1000) return 'Uf... justet';
-  return 'El tòtem plora';
+  if (absDeltaMs <= 30) return 'Maaamma miiaaaa, pizzeria, quin nivell!';
+  if (absDeltaMs <= 120) return 'Ei, ni tan malament, però hi ha gent millor';
+  if (absDeltaMs <= 350) return 'No aniràs a les olimpíades del cronòmetre, però què hi farem';
+  if (absDeltaMs <= 1000) return '... Sense comentaris, que malament que ho has fet';
+  return '... Sense comentaris, que malament que ho has fet. Prova-ho més cops!';
 }
 
 export function evaluateStop(targetMs: number, elapsedMs: number): StopResult {

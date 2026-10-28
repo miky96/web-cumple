@@ -16,13 +16,13 @@ export function ProfileStep({ step, ctx, onSubmit }: StepProps<'profile'>) {
       actions={<NextButton disabled={!!error} onClick={() => onSubmit(value)} />}
     >
       <label className="field">
-        <span>El teu nom o malnom</span>
+        <span>Com vols que et diguem?</span>
         <input className="input" value={nickname} maxLength={40} autoComplete="nickname" onChange={(e) => setNickname(e.target.value)} onBlur={() => setTouched(true)} />
       </label>
       {step.config.askEmail && (
         <label className="field">
           <span>
-            Correu <span className="muted small">(opcional, per avisar-te l'any que ve)</span>
+            Correu <span className="muted small">(opcional, per poder gestionar encara més coses l'any que ve)</span>
           </span>
           <input className="input" type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => setTouched(true)} />
         </label>

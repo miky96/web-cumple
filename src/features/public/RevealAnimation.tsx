@@ -3,9 +3,9 @@ import { useLatest } from '../../lib/hooks';
 import { prefersReducedMotion, vibrate } from '../../lib/device';
 import { BRAND } from '../../ui/brand';
 
-const PHRASES = ['ALGORITME INICIANT-SE...', 'NERVIS...', 'LA MARE DEL TANO SI QUE TRIGA...', 'JOODEEERR QUINA ANSIETAT...', 'OSTI JA ESTÀ? NO T\'ESPERAVES AQUESTA VELOCITAT EEEEE'];
+const PHRASES = ['ALGORITME INICIANT-SE...', 'NERVIS...', 'LA MARE DEL TANO, SÍ QUE TRIGA...', 'JOODEEERR QUINA ANSIETAT...', 'OSTI JA ESTÀ? NO T\'ESPERAVES AQUESTA VELOCITAT EEEEE'];
 
-const DURATION = 6200;
+const DURATION = 9000;
 const FLASH_MS = 1000;
 const MAX_PIXELS = 1_400_000; // limita la resolució del canvas (rendiment)
 

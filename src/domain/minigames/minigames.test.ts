@@ -18,8 +18,8 @@ describe('stop-the-clock', () => {
     expect(evaluateStop(5000, 4900).deltaMs).toBe(-100);
   });
   it('dona una valoració segons la precisió', () => {
-    expect(stopRating(0)).toMatch(/PERFECTE/);
-    expect(stopRating(5000)).toMatch(/plora/);
+    expect(stopRating(0)).toMatch(/quin nivell/);
+    expect(stopRating(5000)).toMatch(/Prova-ho més cops/);
   });
   it('amaga el cronòmetre a partir del llindar', () => {
     expect(isClockHidden(2999, 3000)).toBe(false);
@@ -60,9 +60,9 @@ describe('count-characters', () => {
     expect(n(3)).toBeGreaterThan(n(1));
   });
   it('valora segons la diferència', () => {
-    expect(countRating(7, 7)).toMatch(/EXACTE/);
-    expect(countRating(6, 7)).toMatch(/pèl/);
-    expect(countRating(20, 7)).toMatch(/ovelles/);
+    expect(countRating(7, 7)).toMatch(/quina manera de comptar/);
+    expect(countRating(6, 7)).toMatch(/per 1/);
+    expect(countRating(20, 7)).toMatch(/tajat/);
   });
   it('llegeix llistes d’emojis', () => {
     expect(parseEmojiList(' 🗿 👾,🦩  ')).toEqual(['🗿', '👾', '🦩']);
@@ -75,8 +75,8 @@ describe('tap-race', () => {
     expect(countTaps(1000, 5000, [999, 1000, 3000, 5999, 6000, 7000])).toBe(3);
   });
   it('valora segons tocs per segon', () => {
-    expect(tapRating(50, 5000)).toBe('Dit biònic!');
-    expect(tapRating(5, 5000)).toBe('Tens els dits de vacances');
+    expect(tapRating(50, 5000)).toMatch(/velocitat de dit/);
+    expect(tapRating(5, 5000)).toMatch(/Prova-ho més cops/);
   });
 });
 
