@@ -62,7 +62,7 @@ describe('count-characters', () => {
   it('valora segons la diferència', () => {
     expect(countRating(7, 7)).toMatch(/quina manera de comptar/);
     expect(countRating(6, 7)).toMatch(/per 1/);
-    expect(countRating(20, 7)).toMatch(/tajat/);
+    expect(countRating(20, 7)).toMatch(/taja/);
   });
   it('llegeix llistes d’emojis', () => {
     expect(parseEmojiList(' 🗿 👾,🦩  ')).toEqual(['🗿', '👾', '🦩']);

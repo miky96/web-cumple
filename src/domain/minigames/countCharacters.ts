@@ -104,5 +104,5 @@ export function countRating(guess: number, actual: number): string {
   if (d === 0) return 'Mamma miaaa, quina manera de comptar!';
   if (d === 1) return 'Aaaahhhh, buuuurroooo, per 1!';
   if (d <= 3) return 'Mare meva, segur que les birres que et beus les comptes igual...';
-  return 'Vas tajat o què?';
+  return 'Vas taja o què?';
 }

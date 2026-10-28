@@ -230,7 +230,7 @@ export function ParticipantPage({ token }: { token: string }) {
         <main className="screen">
           <div className="screen-inner screen-center">
             <Logo size={220} />
-            <h2>L'algoritme està encarra debatint on has d'estar...</h2>
+            <h2>L'algoritme està encara debatint on has d'estar...</h2>
             <p className="muted">Felicitats per superar tot el que has superat, disfruta de la vida mentres no saps amb qui aniràs</p>
             <button className="btn" onClick={() => loadReveal(true)}>
               Tornar a mirar
