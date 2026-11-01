@@ -47,9 +47,20 @@ function PublishPanel({ repo, data }: { repo: Repo; data: AdminData }) {
             </div>
           )}
         </div>
-        <button className="btn btn-sm" disabled={busy || count === 0 || status === 'up-to-date'} onClick={publish}>
-          {busy ? 'Publicant...' : `Publicar ${count} revelacions`}
-        </button>
+        {status === 'up-to-date' ? (
+          <button
+            className="btn btn-sm"
+            disabled={busy || count === 0}
+            onClick={publish}
+            title="Torna a publicar sense canvis i marca com a contestats els que ja tenen resposta, perquè els seus companys en vegin el nom."
+          >
+            {busy ? 'Resincronitzant...' : 'Resincronitzar contestats'}
+          </button>
+        ) : (
+          <button className="btn btn-sm" disabled={busy || count === 0} onClick={publish}>
+            {busy ? 'Publicant...' : `Publicar ${count} revelacions`}
+          </button>
+        )}
       </div>
     </div>
   );
