@@ -28,7 +28,7 @@ Les dades del mode demo es guarden a la pestanya del navegador. Si tanques la pe
 Ho fas a la [consola de Firebase](https://console.firebase.google.com/project/totem-of-happiness):
 
 1. **Firestore Database** → *Crear base de dades*. Tria el **mode producció** i una ubicació europea (p. ex. `eur3`).
-2. **Authentication** → *Començar* → *Mètode d'inici de sessió* → activa **Google**.
+2. **Authentication** → *Començar* → *Mètode d'inici de sessió* → activa **Google** i **Correu electrònic/contrasenya** (sense l'enllaç per correu: al pla Spark només en deixa enviar 5 al dia). Tots dos són gratuïts.
 3. **Configuració del projecte** → *Les teves apps* → afegeix una **app web**. Copia els valors de configuració:
    ```bash
    cp .env.example .env.local   # i omple VITE_FIREBASE_API_KEY i VITE_FIREBASE_APP_ID
@@ -117,7 +117,12 @@ public/brand/    logo i tòtem en SVG (recolorables), patró de fons
 ### Seguretat (resum)
 
 - Tot és privat per defecte. L'admin s'identifica pel seu email de Google, que està escrit a les regles.
-- Cada participant té un token aleatori de 22 caràcters, que és el seu enllaç. Un participant només pot fer `get` dels seus documents: mai pot llistar els d'altres persones.
+- Cada participant té un token aleatori de 22 caràcters, que és el seu enllaç. La primera vegada que hi entra amb un compte (Google o correu+contrasenya) el **reclama**: `invites/{token}.uid` passa a ser el seu uid i es crea `accounts/{uid}`. A partir d'aquí només aquest compte (o l'admin) pot llegir o escriure `responses`, `reveals` i `contacts` d'aquell token; l'enllaç sol no dona accés. Un compte només pot tenir un enllaç per edició.
+- Si un enllaç s'ha filtrat abans de ser reclamat, o algú s'ha equivocat de compte: a Participants, 🔓 desvincula el compte i ♻️ genera un enllaç nou (lliure).
+- El correu de contacte es desa a `contacts/{token}` (privat), no dins les respostes. Si queden respostes antigues amb el correu a dins, a Participants surt un avís amb el botó «Moure els correus a privat».
+- Si algú perd l'enllaç, pot entrar a la portada amb el seu compte i el portem al seu enllaç.
+- Sala arcade: les millors marques privades van a `arcade/{token}`, i les públiques a `leaderboard/{uid}` (per uid, mai per token). Només les poden llegir els comptes amb un enllaç vinculat, i el nom ha de ser el de la invitació.
+- Un participant només pot fer `get` dels seus documents: mai pot llistar els d'altres persones.
 - L'assignació real de grups (`editions/*/participants`) no és accessible des de la part pública. En publicar es generen documents `reveals/{token}`, i les regles només en permeten la lectura si ja existeix la resposta `responses/{token}`.
 - Limitació acceptada: algú amb coneixements tècnics podria crear la seva resposta sense jugar i veure el grup abans d'hora. Només veuria el seu.
 

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { Repo } from '../../data/repo';
 import { EDITION_ID } from '../../data/repo';
+import { arcadeRankings, boardFromAnswers, mergeBoards, sameBoard } from '../../domain/arcade/arcade';
+import type { ArcadeImport } from '../../data/ports';
 import { describeAnswer, minigameRankings } from '../../domain/insights/curiosities';
 import { STEP_CATALOG } from '../../domain/quiz/catalog';
 import type { Participant } from '../../domain/types';
@@ -16,6 +18,38 @@ export function ResponsesPage({ repo, data }: { repo: Repo; data: AdminData }) {
     .filter((x) => x.r)
     .map(({ p, r }) => ({ p, name: p.name, answers: r!.answers, at: r!.completedAt }));
   const rankings = minigameRankings(steps, people);
+  const arcade = arcadeRankings(
+    data.participants.flatMap((p) => {
+      const board = data.arcadeByToken.get(p.token);
+      return board ? [{ name: p.name, board }] : [];
+    }),
+  );
+  const arcadePlayers = data.participants.filter((p) => data.arcadeByToken.has(p.token)).length;
+
+  // Importar marques del qüestionari a la sala (i al leaderboard dels que tenen compte vinculat)
+  const imports: ArcadeImport[] = data.participants.flatMap((p) => {
+    const r = data.responseByToken.get(p.token);
+    if (!r) return [];
+    const saved = data.arcadeByToken.get(p.token) ?? {};
+    const board = mergeBoards(saved, boardFromAnswers(steps, r.answers, r.completedAt));
+    const acc = data.accountByToken.get(p.token);
+    const changed = !sameBoard(board, saved);
+    if (Object.keys(board).length === 0 || (!changed && !acc)) return [];
+    return [{ token: p.token, board, leaderboard: acc ? { uid: acc.uid, name: p.name } : null }];
+  });
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const runImport = async () => {
+    setBusy(true);
+    try {
+      await repo.saveArcadeBoards(EDITION_ID, imports);
+      const linked = imports.filter((i) => i.leaderboard).length;
+      setImportMsg(`Fet: ${imports.length} persones a la sala, ${linked} al leaderboard. La resta hi sortiran quan vinculin el compte i entrin a la sala.`);
+    } catch (e) {
+      setImportMsg(`Error: ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -81,6 +115,43 @@ export function ResponsesPage({ repo, data }: { repo: Repo; data: AdminData }) {
             ))}
           </div>
         </>
+      )}
+
+      <h2>🕹️ Sala arcade (millors marques)</h2>
+      <p className="muted small">{arcadePlayers === 0 ? 'Encara no hi ha jugat ningú.' : `${arcadePlayers} persones hi tenen marques. Es guarda la millor de cadascú.`}</p>
+      <div className="row" style={{ marginBottom: 12 }}>
+        <button
+          type="button"
+          className="btn btn-sm"
+          disabled={busy || imports.length === 0}
+          title="Copia els resultats dels minijocs del qüestionari a la sala (només si milloren) i publica el leaderboard dels que tenen compte"
+          onClick={runImport}
+        >
+          Importar marques del qüestionari{imports.length ? ` (${imports.length})` : ''}
+        </button>
+        {importMsg && <span className="muted small">{importMsg}</span>}
+      </div>
+      {arcadePlayers > 0 && (
+        <div className="board" style={{ marginBottom: 24 }}>
+          {arcade.map((rk) => (
+            <section key={rk.game} className="card" style={{ padding: 14 }}>
+              <h3>
+                {STEP_CATALOG[rk.game].emoji} {STEP_CATALOG[rk.game].label}
+              </h3>
+              {rk.entries.length === 0 ? (
+                <p className="muted small">Encara ningú.</p>
+              ) : (
+                <ol style={{ margin: 0, paddingLeft: 22 }}>
+                  {rk.entries.slice(0, 10).map((e, i) => (
+                    <li key={e.name}>
+                      {MEDALS[i] ?? ''} <b>{e.name}</b> — {e.value}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
+          ))}
+        </div>
       )}
 
       <div className="row" style={{ marginBottom: 8 }}>

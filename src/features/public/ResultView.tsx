@@ -38,9 +38,10 @@ interface Props {
   footer?: string;
   onReplay?: () => void;
   onRetake?: () => void;
+  onArcade?: () => void;
 }
 
-export function ResultView({ reveal, mates, name, celebrate, background, footer, onReplay, onRetake }: Props) {
+export function ResultView({ reveal, mates, name, celebrate, background, footer, onReplay, onRetake, onArcade }: Props) {
   const style = { '--group': reveal.color } as CSSProperties;
   const total = reveal.mateKeys?.length ?? reveal.mates?.length ?? 0;
   const pending = Math.max(0, total - mates.length);
@@ -84,6 +85,11 @@ export function ResultView({ reveal, mates, name, celebrate, background, footer,
           )}
         </section>
         {footer && <p className="result-footer">{footer}</p>}
+        {onArcade && (
+          <button type="button" className="btn btn-block" onClick={onArcade}>
+            🕹️ Sala arcade
+          </button>
+        )}
         <div className="result-actions">
           {onReplay && (
             <button type="button" className="link-btn" onClick={onReplay}>

@@ -23,10 +23,11 @@ export interface NamedAnswers {
 type Obj = Record<string, unknown>;
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
-function entryFor(step: QuizStep, raw: unknown): Omit<RankingEntry, 'name'> | null {
+/** Puntuació d'un resultat de minijoc (menor = millor) i el text per mostrar-la. null si no és vàlid. */
+export function minigameScore(type: QuizStep['type'], raw: unknown): Omit<RankingEntry, 'name'> | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const a = raw as Obj;
-  switch (step.type) {
+  switch (type) {
     case 'stop-the-clock': {
       const d = num(a.deltaMs);
       return d === null ? null : { value: formatSignedSeconds(d), score: Math.abs(d) };
@@ -61,7 +62,7 @@ export function minigameRankings(steps: readonly QuizStep[], people: readonly Na
       type: s.type,
       entries: people
         .flatMap((p) => {
-          const e = entryFor(s, p.answers[s.id]);
+          const e = minigameScore(s.type, p.answers[s.id]);
           return e ? [{ name: p.name, ...e }] : [];
         })
         .sort((x, y) => x.score - y.score || x.name.localeCompare(y.name, 'ca')),

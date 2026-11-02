@@ -52,7 +52,8 @@ export interface StepConfigs {
 }
 
 export interface StepAnswers {
-  profile: { nickname: string; email: string };
+  /** `email` només viu al navegador: en desar va a `contacts/{token}` (privat). */
+  profile: { nickname: string; email?: string };
   text: string;
   choice: string[];
   'image-choice': string;
@@ -143,6 +144,25 @@ export interface Edition {
 export interface Invite {
   editionId: string;
   displayName: string;
+  /** Compte (Firebase Auth) que ha reclamat l'enllaç. Sense uid, encara està lliure. */
+  uid?: string | null;
+}
+
+/** `accounts/{uid}`: a quin enllaç està vinculat un compte (permet recuperar l'enllaç). */
+export interface LinkedAccount {
+  uid: string;
+  token: string;
+  editionId: string;
+  /** Correu del compte amb què s'ha entrat (Google o correu+contrasenya). */
+  email: string;
+  claimedAt: number | null;
+}
+
+/** `contacts/{token}`: correu de contacte que ha deixat el participant. Només el llegeix l'admin i ell mateix. */
+export interface Contact {
+  token: string;
+  editionId: string;
+  email: string;
 }
 
 export interface Reveal {

@@ -1292,3 +1292,194 @@ body.is-admin::after {
   font-weight: 700;
   color: var(--score);
 }
+
+/* ---------- Comptes (entrar / vincular l'enllaç) ---------- */
+.auth-panel {
+  width: 100%;
+  max-width: 380px;
+  margin: 0 auto;
+  text-align: left;
+}
+.auth-tabs {
+  justify-content: center;
+}
+.auth-panel .link-btn {
+  align-self: center;
+}
+.account-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  justify-content: center;
+  align-items: center;
+  margin-top: 14px;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+/* ---------- Sala arcade ---------- */
+.arcade-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.arcade-title {
+  font-family: var(--font-display);
+  color: var(--primary-text);
+  text-shadow: var(--text-glow-primary);
+  text-align: center;
+  margin: 8px 0 4px;
+}
+.arcade-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.arcade-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 10px;
+  min-height: 150px;
+  justify-content: center;
+  background: var(--field);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  box-shadow: var(--glow-accent);
+  font: inherit;
+  cursor: pointer;
+  animation: arcadeIn 0.35s ease-out both;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.arcade-card:hover,
+.arcade-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--primary);
+  box-shadow: var(--glow-primary);
+}
+.arcade-card:active {
+  transform: scale(0.97);
+}
+.arcade-emoji {
+  font-size: 2.4rem;
+  line-height: 1;
+}
+.arcade-label {
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: center;
+  line-height: 1.6;
+}
+.arcade-best {
+  color: var(--score);
+  font-size: 0.8rem;
+  text-align: center;
+}
+.arcade-record {
+  color: var(--score);
+  text-shadow: 0 0 6px var(--score), 0 0 18px var(--score);
+}
+.arcade-summary {
+  width: 100%;
+  max-width: 340px;
+  text-align: left;
+}
+@keyframes arcadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arcade-card {
+    animation: none;
+  }
+}
+
+/* Leaderboard de la sala arcade */
+.highscores {
+  margin: 8px 0 16px;
+  padding: 16px 14px;
+  border: 1px solid var(--primary);
+  box-shadow: var(--glow-primary);
+  background: color-mix(in srgb, var(--field) 85%, transparent);
+}
+.highscores h3 {
+  margin: 0 0 10px;
+  text-align: center;
+  font-family: var(--font-pixel);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: var(--score);
+  text-shadow: 0 0 6px var(--score);
+}
+.hs-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+.hs-tabs button {
+  font-size: 1.4rem;
+  min-width: 48px;
+  min-height: 44px;
+  background: transparent;
+  border: 1px solid var(--stroke);
+  cursor: pointer;
+  opacity: 0.55;
+}
+.hs-tabs button.active {
+  opacity: 1;
+  border-color: var(--accent);
+  box-shadow: var(--glow-accent);
+}
+.hs-game {
+  text-align: center;
+  margin: 10px 0 6px;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.hs-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  line-height: 1.6;
+}
+.hs-list li {
+  display: grid;
+  grid-template-columns: 2.4em minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: baseline;
+  padding: 5px 4px;
+}
+.hs-list li:nth-child(-n + 3) .hs-rank {
+  color: var(--score);
+}
+.hs-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+.hs-value {
+  color: var(--accent);
+  white-space: nowrap;
+}
+.hs-list li.me {
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+  outline: 1px solid var(--primary);
+}
+.hs-list li.hs-gap {
+  display: block;
+  text-align: center;
+  opacity: 0.5;
+}

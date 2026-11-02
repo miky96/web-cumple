@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { EDITION_ID, getRepo, IS_DEMO, type Repo } from '../../data/repo';
 import { onRepoError, reportRepoError } from '../../data/errors';
 import { buildAttendance, sameAttendance } from '../../domain/lobby/lobby';
-import type { AdminUser } from '../../data/ports';
+import type { AuthUser as AdminUser } from '../../data/ports';
 import { Link } from '../../lib/router';
 import { Logo, Totem } from '../../ui/brand';
 import { useDocumentTheme } from '../../ui/ThemeScope';

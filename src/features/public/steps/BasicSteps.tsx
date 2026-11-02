@@ -5,7 +5,7 @@ import { NextButton, StepShell, type StepProps } from './common';
 
 export function ProfileStep({ step, ctx, onSubmit }: StepProps<'profile'>) {
   const [nickname, setNickname] = useState(ctx.displayName);
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(ctx.email ?? '');
   const [touched, setTouched] = useState(false);
   const value = { nickname: nickname.trim(), email: email.trim() };
   const error = validateAnswer(step, value);
@@ -22,7 +22,7 @@ export function ProfileStep({ step, ctx, onSubmit }: StepProps<'profile'>) {
       {step.config.askEmail && (
         <label className="field">
           <span>
-            Correu <span className="muted small">(opcional, per poder gestionar encara més coses l'any que ve)</span>
+            Correu <span className="muted small">(opcional, només el veurà l'organitzador)</span>
           </span>
           <input className="input" type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => setTouched(true)} />
         </label>

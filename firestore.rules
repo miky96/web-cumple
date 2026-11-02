@@ -2,8 +2,12 @@ rules_version = '2';
 
 // Model de seguretat (vegeu README → Seguretat):
 // - Tot és privat per defecte i només l'admin hi pot llegir i escriure.
-// - Els participants no tenen compte: s'identifiquen amb un token llarg i aleatori
-//   que forma part del seu enllaç. Només poden fer `get` (mai `list`) dels seus documents.
+// - Cada participant té un enllaç amb un token llarg i aleatori. La primera vegada que hi entra
+//   amb un compte (Google o correu+contrasenya) el "reclama": invites/{token}.uid = el seu uid.
+//   A partir d'aquí, només aquest compte (o l'admin) pot llegir o escriure les seves dades.
+//   L'enllaç sol ja no dona accés: si es filtra, ningú més el pot fer servir un cop reclamat.
+// - Només es pot fer `get` (mai `list`) dels documents públics.
+// - El correu de contacte viu a contacts/{token}, que només llegeixen el propietari i l'admin.
 // - La revelació del grup només es pot llegir quan ja existeix la resposta del qüestionari.
 
 service cloud.firestore {
@@ -20,6 +24,21 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/invites/$(token));
     }
 
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Propietari de l'enllaç: el compte que l'ha reclamat. Tenir l'enllaç ja no és prou.
+    function isOwner(token) {
+      return signedIn()
+        && inviteExists(token)
+        && get(/databases/$(database)/documents/invites/$(token)).data.get('uid', null) == request.auth.uid;
+    }
+
+    function accountPath(uid) {
+      return /databases/$(database)/documents/accounts/$(uid);
+    }
+
     // Admin: accés total.
     match /{document=**} {
       allow read, write: if isAdmin();
@@ -32,6 +51,41 @@ service cloud.firestore {
 
     match /invites/{token} {
       allow get: if true;
+      // Reclamar l'enllaç: un compte el vincula una sola vegada, i en el mateix lot escriu accounts/{uid}.
+      // Un compte només pot tenir un enllaç per edició.
+      allow update: if signedIn()
+        && resource.data.get('uid', null) == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uid'])
+        && request.resource.data.uid == request.auth.uid
+        && getAfter(accountPath(request.auth.uid)).data.token == token
+        && (!exists(accountPath(request.auth.uid))
+            || get(accountPath(request.auth.uid)).data.editionId != resource.data.editionId);
+    }
+
+    // accounts/{uid}: a quin enllaç està vinculat el compte (per recuperar-lo des de la portada).
+    // Només s'escriu juntament amb el reclam de la invitació.
+    match /accounts/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['token', 'editionId', 'email', 'claimedAt'])
+        && request.resource.data.token is string
+        && get(/databases/$(database)/documents/invites/$(request.resource.data.token)).data.get('uid', null) == null
+        && getAfter(/databases/$(database)/documents/invites/$(request.resource.data.token)).data.uid == uid
+        && request.resource.data.editionId == get(/databases/$(database)/documents/invites/$(request.resource.data.token)).data.editionId
+        && request.resource.data.email == request.auth.token.get('email', '')
+        && request.resource.data.claimedAt == request.time;
+    }
+
+    // contacts/{token}: correu de contacte. Privat (només el propietari i l'admin).
+    match /contacts/{token} {
+      allow get: if isOwner(token);
+      allow create, update: if isOwner(token)
+        && request.resource.data.keys().hasOnly(['editionId', 'email'])
+        && request.resource.data.editionId == get(/databases/$(database)/documents/invites/$(token)).data.editionId
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 254
+        && request.resource.data.email.matches('[^@ ]+@[^@ ]+[.][^@ ]+');
     }
 
     // L'enquesta només accepta respostes quan l'admin l'ha oberta (fora de la portada amb compte enrere).
@@ -54,16 +108,43 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/publicEditions/$(editionId)).data.get('allowRetake', true) == true;
     }
 
+    // arcade/{token}: millors marques de la sala arcade. Només el propietari, i un cop fet el qüestionari.
+    match /arcade/{token} {
+      allow get: if isOwner(token);
+      allow create, update: if isOwner(token)
+        && exists(/databases/$(database)/documents/responses/$(token))
+        && request.resource.data.keys().hasOnly(['editionId', 'scores'])
+        && request.resource.data.editionId == get(/databases/$(database)/documents/invites/$(token)).data.editionId
+        && request.resource.data.scores is map
+        && request.resource.data.scores.keys().hasOnly(['stop-the-clock', 'count-characters', 'tap-race', 'memory-sequence']);
+    }
+
+    // leaderboard/{uid}: marques públiques de la sala, per als comptes que tenen un enllaç vinculat.
+    // Clau = uid (no el token, que no s'ha d'exposar). El nom ha de ser el de la invitació.
+    match /leaderboard/{uid} {
+      allow read: if signedIn() && exists(accountPath(request.auth.uid));
+      allow create, update: if signedIn()
+        && request.auth.uid == uid
+        && exists(accountPath(uid))
+        && isOwner(get(accountPath(uid)).data.token)
+        && exists(/databases/$(database)/documents/responses/$(get(accountPath(uid)).data.token))
+        && request.resource.data.keys().hasOnly(['editionId', 'name', 'scores'])
+        && request.resource.data.editionId == get(accountPath(uid)).data.editionId
+        && request.resource.data.name == get(/databases/$(database)/documents/invites/$(get(accountPath(uid)).data.token)).data.displayName
+        && request.resource.data.scores is map
+        && request.resource.data.scores.keys().hasOnly(['stop-the-clock', 'count-characters', 'tap-race', 'memory-sequence']);
+    }
+
     match /responses/{token} {
-      allow get: if inviteExists(token);
+      allow get: if isOwner(token);
       // create = primera vegada; update = tornar a fer el qüestionari (substitueix les respostes)
-      allow create: if validResponse(token);
-      allow update: if validResponse(token) && retakeAllowed(request.resource.data.editionId);
+      allow create: if isOwner(token) && validResponse(token);
+      allow update: if isOwner(token) && validResponse(token) && retakeAllowed(request.resource.data.editionId);
       // delete: només admin (regla general de dalt)
     }
 
     match /reveals/{token} {
-      allow get: if exists(/databases/$(database)/documents/responses/$(token));
+      allow get: if isOwner(token) && exists(/databases/$(database)/documents/responses/$(token));
     }
 
     // Companys que ja han contestat. La clau d'un membre només la coneixen ell i els seus
@@ -71,15 +152,16 @@ service cloud.firestore {
     // - mateStatus: només diu SI ha contestat (sense nom). Es pot escoltar en temps real.
     // - mateCards: el nom, que només es pot llegir un cop ha contestat.
     match /mateStatus/{key} {
-      allow get: if true;
+      allow get: if signedIn();
       // el participant es marca com a contestat una sola vegada, amb l'hora del servidor
-      allow update: if resource.data.get('answeredAt', null) == null
+      allow update: if signedIn()
+        && resource.data.get('answeredAt', null) == null
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answeredAt'])
         && request.resource.data.answeredAt == request.time;
     }
 
     match /mateCards/{key} {
-      allow get: if get(/databases/$(database)/documents/mateStatus/$(key)).data.get('answeredAt', null) != null;
+      allow get: if signedIn() && get(/databases/$(database)/documents/mateStatus/$(key)).data.get('answeredAt', null) != null;
     }
   }
 }

@@ -578,3 +578,11 @@ table.grid {
     padding: 14px;
   }
 }
+
+.account-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}

@@ -4,8 +4,10 @@
  */
 import { generateToken } from '../../domain/tokens';
 import { slugId } from '../../domain/text';
-import type { Answers, Edition, Group, Invite, MateCard, Participant, PublicEdition, QuizResponse, Reveal, RevealedMate } from '../../domain/types';
-import type { AdminRepo, AdminUser, MoneyCol, MoneyCollections, MoneyRepo, Publication, PublicRepo, ResponseWithToken, Unsubscribe } from '../ports';
+import type { Answers, Contact, Edition, Group, Invite, LinkedAccount, MateCard, Participant, PublicEdition, QuizResponse, Reveal, RevealedMate } from '../../domain/types';
+import { splitProfileEmail } from '../../domain/people/contact';
+import type { ArcadeBoard } from '../../domain/arcade/arcade';
+import type { AdminRepo, ArcadeImport, AuthUser, LeaderboardRow, MoneyCol, MoneyCollections, MoneyRepo, Publication, PublicRepo, ResponseWithToken, Unsubscribe } from '../ports';
 import { defaultBudgetLines, DEFAULT_PRICING, normalizePricing } from '../../domain/money/defaults';
 import type { Pricing } from '../../domain/money/types';
 import { newEdition, newGroups, newPublicEdition, normalizePublicEdition } from '../defaults';
@@ -27,8 +29,14 @@ interface Store {
   /** clau → instant en què va contestar (null = encara no). */
   mateStatus: Record<string, number | null>;
   money: Record<string, MoneyStore>;
-  user: AdminUser | null;
+  accounts: Record<string, LinkedAccount>;
+  contacts: Record<string, Contact>;
+  arcade: Record<string, { editionId: string; board: ArcadeBoard }>;
+  leaderboard: Record<string, { editionId: string; name: string; board: ArcadeBoard }>;
+  user: AuthUser | null;
 }
+
+const denied = () => Object.assign(new Error('Missing or insufficient permissions.'), { code: 'permission-denied' });
 
 type MoneyStore = { [K in MoneyCol]: Record<string, MoneyCollections[K]> } & { pricing: Pricing };
 
@@ -50,7 +58,34 @@ function seedMoney(people: Participant[]): MoneyStore {
   return m;
 }
 
-const KEY = 'web-cumple-demo-store-v6';
+const KEY = 'web-cumple-demo-store-v9';
+
+/** Demo: uns quants rècords perquè el leaderboard no surti buit. */
+function seedLeaderboard(editionId: string): Store['leaderboard'] {
+  const t0 = Date.now() - 86400_000;
+  const rows: [string, number, number, number, number][] = [
+    ['Anna', 120, 1, 38, 4],
+    ['Bernat', -40, 0, 45, 3],
+    ['Carla', 310, 2, 29, 5],
+    ['David', -15, 0, 33, 2],
+    ['Elna', 80, 3, 51, 5],
+  ];
+  return Object.fromEntries(
+    rows.map(([name, delta, off, taps, lvl], i) => [
+      `demo-${name}`,
+      {
+        editionId,
+        name,
+        board: {
+          'stop-the-clock': { answer: { targetMs: 5000, elapsedMs: 5000 + delta, deltaMs: delta }, score: Math.abs(delta), at: t0 + i },
+          'count-characters': { answer: { guess: 10 + off, actual: 10 }, score: off, at: t0 + i },
+          'tap-race': { answer: { taps, durationMs: 5000 }, score: -taps, at: t0 + i },
+          'memory-sequence': { answer: { levelReached: lvl, levels: 5 }, score: -lvl, at: t0 + i },
+        },
+      },
+    ]),
+  );
+}
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 const delay = (ms = 120) => new Promise((r) => setTimeout(r, ms));
 
@@ -94,6 +129,10 @@ function seed(editionId: string): Store {
     mateCards: {},
     mateStatus: {},
     money: { [editionId]: seedMoney(Object.values(participants)) },
+    accounts: {},
+    contacts: {},
+    arcade: {},
+    leaderboard: seedLeaderboard(editionId),
     user: null,
   };
   // demo: portada activa amb compte enrere de 3 dies
@@ -156,9 +195,54 @@ export class MemoryRepo implements PublicRepo, AdminRepo, MoneyRepo {
     const e = this.store.publicEditions[editionId];
     return e ? normalizePublicEdition(editionId, clone(e)) : null;
   }
+  /** Imita les rules: cal haver entrat (el demo no distingeix admin de participant). */
+  private requireUser() {
+    if (!this.store.user) throw denied();
+  }
   async getResponse(token: string) {
     await delay();
+    this.requireUser();
     return clone(this.store.responses[token] ?? null);
+  }
+  async claimInvite(token: string, editionId: string) {
+    await delay(200);
+    const u = this.store.user;
+    const inv = this.store.invites[token];
+    if (!u || !inv || inv.uid) throw denied();
+    if (this.store.accounts[u.uid]?.editionId === editionId) throw denied();
+    inv.uid = u.uid;
+    this.store.accounts[u.uid] = { uid: u.uid, token, editionId, email: u.email, claimedAt: Date.now() };
+    this.commit();
+  }
+  async getMyAccount() {
+    const u = this.store.user;
+    const a = u ? this.store.accounts[u.uid] : undefined;
+    return a ? { token: a.token, editionId: a.editionId } : null;
+  }
+  async getArcade(token: string) {
+    await delay();
+    this.requireUser();
+    return clone(this.store.arcade[token]?.board ?? {});
+  }
+  async saveArcade(token: string, editionId: string, board: ArcadeBoard, leaderboardName: string | null) {
+    this.requireUser();
+    if (!this.store.responses[token]) throw denied(); // imita les rules: cal haver fet el qüestionari
+    this.store.arcade[token] = { editionId, board: clone(board) };
+    if (leaderboardName !== null) this.store.leaderboard[this.store.user!.uid] = { editionId, name: leaderboardName, board: clone(board) };
+    this.commit();
+  }
+  watchLeaderboard(editionId: string, cb: (rows: LeaderboardRow[]) => void) {
+    return this.watch(
+      () =>
+        Object.entries(this.store.leaderboard)
+          .filter(([, r]) => r.editionId === editionId)
+          .map(([uid, r]) => ({ uid, name: r.name, board: r.board })),
+      cb,
+    );
+  }
+  async saveContact(token: string, editionId: string, email: string) {
+    this.store.contacts[token] = { token, editionId, email: email.trim() };
+    this.commit();
   }
   async submitResponse(token: string, editionId: string, answers: Answers) {
     await delay(300);
@@ -194,12 +278,25 @@ export class MemoryRepo implements PublicRepo, AdminRepo, MoneyRepo {
   }
 
   // ---------- AdminRepo ----------
-  onAuthChange(cb: (u: AdminUser | null) => void) {
+  onAuthChange(cb: (u: AuthUser | null) => void) {
     return this.watch(() => this.store.user, cb);
   }
   async signIn() {
-    this.store.user = { email: 'demo@totem.cat', name: 'Admin demo' };
+    this.store.user = { uid: 'demo-user', email: 'demo@totem.cat', name: 'Admin demo' };
     this.commit();
+  }
+  async signInWithEmail(email: string, password: string) {
+    await delay(200);
+    if (password.length < 6) throw Object.assign(new Error('bad'), { code: 'auth/invalid-credential' });
+    const e = email.trim().toLowerCase();
+    this.store.user = { uid: `u-${e}`, email: e, name: e };
+    this.commit();
+  }
+  async signUpWithEmail(email: string, password: string) {
+    await this.signInWithEmail(email, password);
+  }
+  async sendPasswordReset() {
+    await delay(200);
   }
   async signOut() {
     this.store.user = null;
@@ -236,6 +333,56 @@ export class MemoryRepo implements PublicRepo, AdminRepo, MoneyRepo {
       cb,
     );
   }
+  watchAccounts(id: string, cb: (as: LinkedAccount[]) => void) {
+    return this.watch(() => Object.values(this.store.accounts).filter((a) => a.editionId === id), cb);
+  }
+  watchContacts(id: string, cb: (cs: Contact[]) => void) {
+    return this.watch(() => Object.values(this.store.contacts).filter((c) => c.editionId === id), cb);
+  }
+  watchArcade(id: string, cb: (boards: { token: string; board: ArcadeBoard }[]) => void) {
+    return this.watch(
+      () =>
+        Object.entries(this.store.arcade)
+          .filter(([, a]) => a.editionId === id)
+          .map(([token, a]) => ({ token, board: a.board })),
+      cb,
+    );
+  }
+  async saveArcadeBoards(editionId: string, entries: ArcadeImport[]) {
+    for (const e of entries) {
+      this.store.arcade[e.token] = { editionId, board: clone(e.board) };
+      if (e.leaderboard) this.store.leaderboard[e.leaderboard.uid] = { editionId, name: e.leaderboard.name, board: clone(e.board) };
+    }
+    this.commit();
+  }
+  private releaseAccount(token: string) {
+    const uid = this.store.invites[token]?.uid;
+    if (uid && this.store.accounts[uid]?.token === token) {
+      delete this.store.accounts[uid];
+      delete this.store.leaderboard[uid];
+    }
+  }
+  async unlinkAccount(_editionId: string, p: Participant) {
+    this.releaseAccount(p.token);
+    const inv = this.store.invites[p.token];
+    if (inv) delete inv.uid;
+    this.commit();
+  }
+  async moveEmailsToContacts(editionId: string, rs: { token: string }[]) {
+    let n = 0;
+    for (const { token } of rs) {
+      const r = this.store.responses[token];
+      if (!r) continue;
+      const { answers, email } = splitProfileEmail(r.answers);
+      r.answers = answers;
+      if (email) {
+        this.store.contacts[token] = { token, editionId, email };
+        n++;
+      }
+    }
+    this.commit();
+    return n;
+  }
 
   async updateEdition(id: string, patch: Partial<Pick<Edition, 'title' | 'nights'>>) {
     Object.assign(this.store.editions[id], patch);
@@ -263,6 +410,9 @@ export class MemoryRepo implements PublicRepo, AdminRepo, MoneyRepo {
     this.commit();
   }
   async removeParticipant(editionId: string, p: Participant) {
+    this.releaseAccount(p.token);
+    delete this.store.contacts[p.token];
+    delete this.store.arcade[p.token];
     delete this.store.participants[editionId][p.id];
     delete this.store.invites[p.token];
     delete this.store.responses[p.token];
@@ -273,6 +423,11 @@ export class MemoryRepo implements PublicRepo, AdminRepo, MoneyRepo {
   }
   async regenerateToken(editionId: string, p: Participant) {
     const cur = this.store.participants[editionId][p.id];
+    this.releaseAccount(cur.token);
+    const contact = this.store.contacts[cur.token];
+    const arcade = this.store.arcade[cur.token];
+    delete this.store.contacts[cur.token];
+    delete this.store.arcade[cur.token];
     delete this.store.invites[cur.token];
     delete this.store.reveals[cur.token];
     const response = this.store.responses[cur.token];
@@ -280,6 +435,8 @@ export class MemoryRepo implements PublicRepo, AdminRepo, MoneyRepo {
     cur.token = generateToken();
     this.store.invites[cur.token] = { editionId, displayName: cur.name };
     if (response) this.store.responses[cur.token] = response;
+    if (contact) this.store.contacts[cur.token] = { ...contact, token: cur.token };
+    if (arcade) this.store.arcade[cur.token] = arcade;
     this.commit();
   }
   async setGroups(editionId: string, assignments: Record<string, string | null>) {

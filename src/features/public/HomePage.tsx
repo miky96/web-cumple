@@ -1,11 +1,92 @@
 import { useEffect, useState } from 'react';
-import { getRepo, EDITION_ID, IS_DEMO } from '../../data/repo';
+import type { AuthUser } from '../../data/ports';
+import { getRepo, EDITION_ID, IS_DEMO, type Repo } from '../../data/repo';
 import type { PublicEdition } from '../../domain/types';
 import { Link } from '../../lib/router';
 import { LAST_TOKEN_KEY, readJson } from '../../lib/storage';
 import { Logo } from '../../ui/brand';
 import { useDocumentTheme } from '../../ui/ThemeScope';
+import { AuthPanel } from './AuthPanel';
 import { LobbyView } from './LobbyView';
+
+/**
+ * Botó per continuar: l'enllaç vinculat al compte (si ha entrat) o l'últim enllaç d'aquest navegador.
+ * Si ha perdut l'enllaç, pot entrar amb el seu compte i el portem al seu.
+ */
+function AccountEntry({ last }: { last: string | null }) {
+  const [repo, setRepo] = useState<Repo | null>(null);
+  const [user, setUser] = useState<AuthUser | null | undefined>(undefined);
+  const [account, setAccount] = useState<{ uid: string; token: string | null } | null>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    let unsub: (() => void) | null = null;
+    getRepo()
+      .then((r) => {
+        if (!alive) return;
+        setRepo(r);
+        unsub = r.onAuthChange((u) => alive && setUser(u));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+      unsub?.();
+    };
+  }, []);
+  useEffect(() => {
+    if (!repo || !user) return;
+    let alive = true;
+    repo.getMyAccount().then((a) => alive && setAccount({ uid: user.uid, token: a?.token ?? null }));
+    return () => {
+      alive = false;
+    };
+  }, [repo, user]);
+
+  const linked = user && account?.uid === user.uid ? account.token : undefined; // undefined = encara carregant
+  if (user && linked === undefined) return <div className="spinner" />;
+  if (user && linked)
+    return (
+      <>
+        <Link href={`/p/${linked}`} className="btn btn-block">
+          Continue
+        </Link>
+        <p className="account-strip">
+          <span className="muted">{user.email || user.name}</span>
+          <button type="button" className="link-btn" onClick={() => repo?.signOut()}>
+            Sortir
+          </button>
+        </p>
+      </>
+    );
+
+  return (
+    <>
+      {last ? (
+        <Link href={`/p/${last}`} className="btn btn-block">
+          Continue
+        </Link>
+      ) : (
+        <p className="lobby-hint">Per jugar necessites el teu enllaç personal. Busca'l al WhatsApp!</p>
+      )}
+      {user ? (
+        <p className="account-strip">
+          <span className="muted">El compte {user.email || user.name} encara no té cap enllaç vinculat: obre el teu enllaç del WhatsApp.</span>
+          <button type="button" className="link-btn" onClick={() => repo?.signOut()}>
+            Sortir
+          </button>
+        </p>
+      ) : repo && user === null && open ? (
+        <AuthPanel repo={repo} />
+      ) : (
+        repo && (
+          <button type="button" className="link-btn account-strip" onClick={() => setOpen(true)}>
+            Has perdut l'enllaç? Entra amb el teu compte
+          </button>
+        )
+      )}
+    </>
+  );
+}
 
 /**
  * Pàgina pública compartida (enllaç únic per al grup de WhatsApp): `/` o `/portada`.
@@ -62,13 +143,7 @@ export function HomePage() {
         <Logo size={290} />
         <p className="welcome-hello">{edition.theme.subtitle || 'Totem of Happiness'}</p>
         <div className="grow" />
-        {last ? (
-          <Link href={`/p/${last}`} className="btn btn-block">
-            Continue
-          </Link>
-        ) : (
-          <p className="lobby-hint">Per jugar necessites el teu enllaç personal. Busca'l al WhatsApp!</p>
-        )}
+        <AccountEntry last={last} />
         <p className="insert-coin blink" aria-hidden>
           Insert coin
         </p>

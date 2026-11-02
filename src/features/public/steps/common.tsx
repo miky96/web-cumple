@@ -3,6 +3,8 @@ import type { AnswerOf, QuizStepOf, StepType } from '../../../domain/types';
 
 export interface StepContext {
   displayName: string;
+  /** Correu del compte amb què ha entrat (per omplir el registre). */
+  email?: string;
 }
 
 export interface StepProps<T extends StepType> {

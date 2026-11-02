@@ -2,16 +2,31 @@ import { useMemo, useState } from 'react';
 import type { Repo } from '../../data/repo';
 import { EDITION_ID } from '../../data/repo';
 import { nightLabel } from '../../data/defaults';
+import { hasEmbeddedEmail } from '../../domain/people/contact';
 import { parseImportList, parseTags } from '../../domain/people/importList';
 import { normalizeName } from '../../domain/text';
-import type { Group, Participant } from '../../domain/types';
+import type { Contact, Group, LinkedAccount, Participant } from '../../domain/types';
 import { copyText } from '../../lib/device';
 import { askConfirm } from '../../ui/confirm';
 import type { AdminData } from './useAdminData';
 
 export const participantLink = (token: string) => `${location.origin}/p/${token}`;
 export const whatsappMessage = (p: Participant) =>
-  `Hola ${p.name}! 🗿🌴 El tòtem té una missió per a tu. Entra aquí (és el teu enllaç personal, no el comparteixis): ${participantLink(p.token)}`;
+  `Hola ${p.name}! 🗿🌴 El tòtem té una missió per a tu. Entra aquí i vincula-hi el teu compte (és el teu enllaç personal, no el comparteixis): ${participantLink(p.token)}`;
+
+function AccountCell({ account, contact }: { account?: LinkedAccount; contact?: Contact }) {
+  const same = account && contact && account.email.toLowerCase() === contact.email.toLowerCase();
+  return (
+    <div className="account-cell">
+      {account ? (
+        <span title={account.claimedAt ? `Vinculat el ${new Date(account.claimedAt).toLocaleString('ca')}` : undefined}>🔐 {account.email || 'compte sense correu'}</span>
+      ) : (
+        <span className="muted">— sense compte</span>
+      )}
+      {contact && !same && <span className="muted small">✉ {contact.email}</span>}
+    </div>
+  );
+}
 
 function CopyButton({ text, label, title }: { text: string; label: string; title: string }) {
   const [ok, setOk] = useState(false);
@@ -32,7 +47,23 @@ function CopyButton({ text, label, title }: { text: string; label: string; title
   );
 }
 
-function ParticipantRow({ repo, p, nights, groups, done }: { repo: Repo; p: Participant; nights: string[]; groups: Group[]; done: boolean }) {
+function ParticipantRow({
+  repo,
+  p,
+  nights,
+  groups,
+  done,
+  account,
+  contact,
+}: {
+  repo: Repo;
+  p: Participant;
+  nights: string[];
+  groups: Group[];
+  done: boolean;
+  account?: LinkedAccount;
+  contact?: Contact;
+}) {
   const [name, setName] = useState(p.name);
   const [tags, setTags] = useState(p.tags.join(', '));
   const [notes, setNotes] = useState(p.notes);
@@ -95,6 +126,9 @@ function ParticipantRow({ repo, p, nights, groups, done }: { repo: Repo; p: Part
         <span className={`status ${done ? 'done' : 'pending'}`}>{done ? '✅ Fet' : '⏳ Pendent'}</span>
       </td>
       <td>
+        <AccountCell account={account} contact={contact} />
+      </td>
+      <td>
         <input className="cell" value={notes} placeholder="—" onChange={(e) => setNotes(e.target.value)} onBlur={() => notes !== p.notes && save({ notes })} />
       </td>
       <td>
@@ -117,12 +151,29 @@ function ParticipantRow({ repo, p, nights, groups, done }: { repo: Repo; p: Part
               ⟲
             </button>
           )}
+          {account && (
+            <button
+              type="button"
+              className="icon-btn"
+              title="Desvincular el compte (l'enllaç el podrà tornar a reclamar qualsevol que el tingui)"
+              onClick={async () =>
+                (await askConfirm({
+                  title: 'DESVINCULAR?',
+                  message: `Desvincular el compte ${account.email} de ${p.name}? L'enllaç quedarà lliure i el primer que hi entri amb un compte el reclamarà. Si creus que l'enllaç s'ha filtrat, millor genera'n un de nou.`,
+                  confirmLabel: 'Desvincular',
+                  danger: true,
+                })) && repo.unlinkAccount(EDITION_ID, p)
+              }
+            >
+              🔓
+            </button>
+          )}
           <button
             type="button"
             className="icon-btn"
             title="Generar un enllaç nou (l'antic deixarà de funcionar)"
             onClick={async () =>
-              (await askConfirm({ title: 'NOU ENLLAÇ?', message: `Generar un enllaç nou per a ${p.name}? L'antic deixarà de funcionar i hauràs de tornar a publicar els grups.`, confirmLabel: 'Generar enllaç nou', danger: true })) &&
+              (await askConfirm({ title: 'NOU ENLLAÇ?', message: `Generar un enllaç nou per a ${p.name}? L'antic deixarà de funcionar, el compte vinculat es desvincularà (l'haurà de tornar a reclamar amb l'enllaç nou) i hauràs de tornar a publicar els grups.`, confirmLabel: 'Generar enllaç nou', danger: true })) &&
               repo.regenerateToken(EDITION_ID, p)
             }
           >
@@ -142,6 +193,34 @@ function ParticipantRow({ repo, p, nights, groups, done }: { repo: Repo; p: Part
         </div>
       </td>
     </tr>
+  );
+}
+
+/** Migració d'un sol ús: els correus que es van desar dins les respostes (llegibles amb l'enllaç) passen a privat. */
+function EmailMigrationBanner({ repo, data }: { repo: Repo; data: AdminData }) {
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<number | null>(null);
+  const pending = data.responses.filter((r) => hasEmbeddedEmail(r.answers));
+  if (pending.length === 0)
+    return done !== null ? <div className="admin-banner">✅ {done} correus moguts a privat.</div> : null;
+  return (
+    <div className="admin-banner" role="alert">
+      Hi ha {pending.length} respostes amb el correu a dins (qualsevol amb l'enllaç el podria veure).{' '}
+      <button
+        className="btn btn-sm"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          try {
+            setDone(await repo.moveEmailsToContacts(EDITION_ID, pending));
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? 'Movent...' : 'Moure els correus a privat'}
+      </button>
+    </div>
   );
 }
 
@@ -188,6 +267,7 @@ export function ParticipantsPage({ repo, data }: { repo: Repo; data: AdminData }
 
   const visible = data.participants.filter((p) => !filter || normalizeName(p.name).includes(normalizeName(filter)));
   const completed = data.participants.filter(done).length;
+  const linked = data.participants.filter((p) => data.accountByToken.has(p.token)).length;
   const tagCounts = new Map<string, number>();
   data.participants.forEach((p) => p.tags.forEach((t) => tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1)));
 
@@ -213,6 +293,12 @@ export function ParticipantsPage({ repo, data }: { repo: Repo; data: AdminData }
           </b>
           <span>qüestionaris fets</span>
         </div>
+        <div className="stat">
+          <b>
+            {linked}/{data.participants.length}
+          </b>
+          <span>comptes vinculats</span>
+        </div>
         {nights.map((n) => (
           <div className="stat" key={n}>
             <b>{data.participants.filter((p) => p.nights.includes(n)).length}</b>
@@ -226,6 +312,8 @@ export function ParticipantsPage({ repo, data }: { repo: Repo; data: AdminData }
           </div>
         ))}
       </div>
+
+      <EmailMigrationBanner repo={repo} data={data} />
 
       {showImport ? (
         <ImportPanel repo={repo} data={data} onDone={() => setShowImport(false)} />
@@ -256,17 +344,27 @@ export function ParticipantsPage({ repo, data }: { repo: Repo; data: AdminData }
               <th style={{ width: '16%' }}>Etiquetes</th>
               <th style={{ width: '14%' }}>Grup</th>
               <th>Qüestionari</th>
+              <th>Compte</th>
               <th>Notes</th>
               <th>Enllaç i accions</th>
             </tr>
           </thead>
           <tbody>
             {visible.map((p) => (
-              <ParticipantRow key={`${p.id}-${p.token}`} repo={repo} p={p} nights={nights} groups={data.groups} done={done(p)} />
+              <ParticipantRow
+                key={`${p.id}-${p.token}`}
+                repo={repo}
+                p={p}
+                nights={nights}
+                groups={data.groups}
+                done={done(p)}
+                account={data.accountByToken.get(p.token)}
+                contact={data.contactByToken.get(p.token)}
+              />
             ))}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={8 + nights.length} className="muted center" style={{ padding: 24 }}>
+                <td colSpan={9 + nights.length} className="muted center" style={{ padding: 24 }}>
                   Encara no hi ha ningú. Afegeix persones a dalt.
                 </td>
               </tr>

@@ -1,14 +1,19 @@
 import {
   GoogleAuthProvider,
+  createUserWithEmailAndPassword,
   getAuth,
   onAuthStateChanged,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
   signInWithPopup,
   signInWithRedirect,
   signOut,
+  type Auth,
 } from 'firebase/auth';
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -28,9 +33,11 @@ import type { ImportRow } from '../../domain/people/importList';
 import { generateToken } from '../../domain/tokens';
 import type {
   Answers,
+  Contact,
   Edition,
   Group,
   Invite,
+  LinkedAccount,
   Participant,
   PublicEdition,
   QuizResponse,
@@ -38,11 +45,13 @@ import type {
   RevealedMate,
 } from '../../domain/types';
 import { memberKey, sortRevealedMates } from '../../domain/groups/reveals';
+import { hasEmbeddedEmail, splitProfileEmail } from '../../domain/people/contact';
+import type { ArcadeBoard } from '../../domain/arcade/arcade';
 import { normalizeLine, normalizePricing } from '../../domain/money/defaults';
 import type { Pricing } from '../../domain/money/types';
 import { newEdition, newGroups, newPublicEdition, normalizePublicEdition } from '../defaults';
 import { reportRepoError } from '../errors';
-import type { AdminRepo, AdminUser, MoneyCol, MoneyCollections, MoneyRepo, Publication, PublicRepo, ResponseWithToken, Unsubscribe } from '../ports';
+import type { AdminRepo, ArcadeImport, AuthUser, LeaderboardRow, MoneyCol, MoneyCollections, MoneyRepo, Publication, PublicRepo, ResponseWithToken, Unsubscribe } from '../ports';
 import { getFirebaseApp } from './firebaseApp';
 
 const toMillis = (v: unknown): number | null => (v instanceof Timestamp ? v.toMillis() : typeof v === 'number' ? v : null);
@@ -55,8 +64,12 @@ function clean<T extends object>(obj: T): DocumentData {
 export class FirestoreRepo implements PublicRepo, AdminRepo, MoneyRepo {
   private readonly db: Firestore;
 
+  private readonly auth: Auth;
+
   constructor() {
     this.db = getFirestore(getFirebaseApp());
+    this.auth = getAuth(getFirebaseApp());
+    this.auth.languageCode = 'ca'; // correus de restablir contrasenya en català
   }
 
   // ---------- refs ----------
@@ -72,6 +85,10 @@ export class FirestoreRepo implements PublicRepo, AdminRepo, MoneyRepo {
   private personRef = (id: string) => doc(this.db, 'people', id);
   private mateStatusRef = (k: string) => doc(this.db, 'mateStatus', k);
   private mateCardRef = (k: string) => doc(this.db, 'mateCards', k);
+  private contactRef = (t: string) => doc(this.db, 'contacts', t);
+  private accountRef = (uid: string) => doc(this.db, 'accounts', uid);
+  private arcadeRef = (t: string) => doc(this.db, 'arcade', t);
+  private leaderboardRef = (uid: string) => doc(this.db, 'leaderboard', uid);
   private moneyCol = (e: string, col: MoneyCol) => collection(this.db, 'editions', e, col);
   private pricingRef = (e: string) => doc(this.db, 'editions', e, 'money', 'pricing');
 
@@ -165,28 +182,86 @@ export class FirestoreRepo implements PublicRepo, AdminRepo, MoneyRepo {
   }
 
   // ---------- Auth ----------
-  onAuthChange(cb: (u: AdminUser | null) => void): Unsubscribe {
-    return onAuthStateChanged(getAuth(getFirebaseApp()), (u) =>
-      cb(u ? { email: u.email ?? '', name: u.displayName ?? u.email ?? '' } : null),
+  onAuthChange(cb: (u: AuthUser | null) => void): Unsubscribe {
+    return onAuthStateChanged(this.auth, (u) =>
+      cb(u ? { uid: u.uid, email: u.email ?? '', name: u.displayName ?? u.email ?? '' } : null),
     );
   }
 
   async signIn(): Promise<void> {
-    const auth = getAuth(getFirebaseApp());
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
     try {
-      await signInWithPopup(auth, provider);
+      await signInWithPopup(this.auth, provider);
     } catch (e) {
       const code = (e as { code?: string }).code;
       if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
-        await signInWithRedirect(auth, provider);
+        await signInWithRedirect(this.auth, provider);
       } else if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') throw e;
     }
   }
 
+  async signInWithEmail(email: string, password: string): Promise<void> {
+    await signInWithEmailAndPassword(this.auth, email.trim(), password);
+  }
+
+  async signUpWithEmail(email: string, password: string): Promise<void> {
+    await createUserWithEmailAndPassword(this.auth, email.trim(), password);
+  }
+
+  async sendPasswordReset(email: string): Promise<void> {
+    await sendPasswordResetEmail(this.auth, email.trim());
+  }
+
   async signOut(): Promise<void> {
-    await signOut(getAuth(getFirebaseApp()));
+    await signOut(this.auth);
+  }
+
+  // ---------- Comptes i contacte (participant) ----------
+  async claimInvite(token: string, editionId: string): Promise<void> {
+    const u = this.auth.currentUser;
+    if (!u) throw new Error('Cal entrar amb un compte');
+    // les rules exigeixen les dues escriptures juntes
+    const batch = writeBatch(this.db);
+    batch.update(this.inviteRef(token), { uid: u.uid });
+    batch.set(this.accountRef(u.uid), { token, editionId, email: u.email ?? '', claimedAt: serverTimestamp() });
+    await batch.commit();
+  }
+
+  async getMyAccount(): Promise<{ token: string; editionId: string } | null> {
+    const u = this.auth.currentUser;
+    if (!u) return null;
+    try {
+      const s = await getDoc(this.accountRef(u.uid));
+      return s.exists() ? { token: s.data().token, editionId: s.data().editionId } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async saveContact(token: string, editionId: string, email: string): Promise<void> {
+    await setDoc(this.contactRef(token), { editionId, email: email.trim() });
+  }
+
+  async getArcade(token: string): Promise<ArcadeBoard> {
+    const s = await getDoc(this.arcadeRef(token));
+    return s.exists() ? ((s.data().scores ?? {}) as ArcadeBoard) : {};
+  }
+
+  async saveArcade(token: string, editionId: string, board: ArcadeBoard, leaderboardName: string | null): Promise<void> {
+    const batch = writeBatch(this.db);
+    batch.set(this.arcadeRef(token), { editionId, scores: clean(board) });
+    const u = this.auth.currentUser;
+    if (leaderboardName !== null && u) batch.set(this.leaderboardRef(u.uid), { editionId, name: leaderboardName, scores: clean(board) });
+    await batch.commit();
+  }
+
+  watchLeaderboard(editionId: string, cb: (rows: LeaderboardRow[]) => void): Unsubscribe {
+    return onSnapshot(
+      query(collection(this.db, 'leaderboard'), where('editionId', '==', editionId)),
+      (qs) => cb(qs.docs.map((d) => ({ uid: d.id, name: d.data().name ?? '', board: (d.data().scores ?? {}) as ArcadeBoard }))),
+      (e) => console.warn('No es pot llegir el leaderboard', e),
+    );
   }
 
   // ---------- Admin: lectures en temps real ----------
@@ -262,6 +337,47 @@ export class FirestoreRepo implements PublicRepo, AdminRepo, MoneyRepo {
     );
   }
 
+  watchAccounts(editionId: string, cb: (as: LinkedAccount[]) => void): Unsubscribe {
+    return onSnapshot(
+      query(collection(this.db, 'accounts'), where('editionId', '==', editionId)),
+      (qs) =>
+        cb(
+          qs.docs.map((d) => {
+            const x = d.data();
+            return { uid: d.id, token: x.token, editionId: x.editionId, email: x.email ?? '', claimedAt: toMillis(x.claimedAt) };
+          }),
+        ),
+      reportRepoError,
+    );
+  }
+
+  watchContacts(editionId: string, cb: (cs: Contact[]) => void): Unsubscribe {
+    return onSnapshot(
+      query(collection(this.db, 'contacts'), where('editionId', '==', editionId)),
+      (qs) => cb(qs.docs.map((d) => ({ token: d.id, editionId: d.data().editionId, email: d.data().email ?? '' }))),
+      reportRepoError,
+    );
+  }
+
+  watchArcade(editionId: string, cb: (boards: { token: string; board: ArcadeBoard }[]) => void): Unsubscribe {
+    return onSnapshot(
+      query(collection(this.db, 'arcade'), where('editionId', '==', editionId)),
+      (qs) => cb(qs.docs.map((d) => ({ token: d.id, board: (d.data().scores ?? {}) as ArcadeBoard }))),
+      reportRepoError,
+    );
+  }
+
+  async saveArcadeBoards(editionId: string, entries: ArcadeImport[]): Promise<void> {
+    for (let i = 0; i < entries.length; i += 200) {
+      const batch = writeBatch(this.db);
+      for (const e of entries.slice(i, i + 200)) {
+        batch.set(this.arcadeRef(e.token), { editionId, scores: clean(e.board) });
+        if (e.leaderboard) batch.set(this.leaderboardRef(e.leaderboard.uid), { editionId, name: e.leaderboard.name, scores: clean(e.board) });
+      }
+      await batch.commit();
+    }
+  }
+
   // ---------- Admin: escriptures ----------
   async updateEdition(editionId: string, patch: Partial<Pick<Edition, 'title' | 'nights'>>): Promise<void> {
     await updateDoc(this.editionRef(editionId), clean(patch));
@@ -306,8 +422,48 @@ export class FirestoreRepo implements PublicRepo, AdminRepo, MoneyRepo {
     await batch.commit();
   }
 
+  /** uid del compte que ha reclamat l'enllaç (si n'hi ha). */
+  private async claimedUid(token: string): Promise<string | null> {
+    const s = await getDoc(this.inviteRef(token));
+    return s.exists() ? ((s.data() as Invite).uid ?? null) : null;
+  }
+
+  /** Esborra `accounts/{uid}` només si encara apunta a aquest enllaç. */
+  private async releaseAccount(batch: ReturnType<typeof writeBatch>, token: string): Promise<void> {
+    const uid = await this.claimedUid(token);
+    if (!uid) return;
+    const acc = await getDoc(this.accountRef(uid));
+    if (acc.exists() && acc.data().token === token) {
+      batch.delete(this.accountRef(uid));
+      batch.delete(this.leaderboardRef(uid)); // es tornarà a publicar quan el nou propietari entri a la sala
+    }
+  }
+
+  async unlinkAccount(_editionId: string, p: Participant): Promise<void> {
+    const batch = writeBatch(this.db);
+    await this.releaseAccount(batch, p.token);
+    batch.update(this.inviteRef(p.token), { uid: deleteField() });
+    await batch.commit();
+  }
+
+  async moveEmailsToContacts(editionId: string, rs: ResponseWithToken[]): Promise<number> {
+    const moves = rs.filter((r) => hasEmbeddedEmail(r.answers)).map((r) => ({ token: r.token, ...splitProfileEmail(r.answers) }));
+    for (let i = 0; i < moves.length; i += 200) {
+      const batch = writeBatch(this.db);
+      for (const m of moves.slice(i, i + 200)) {
+        if (m.email) batch.set(this.contactRef(m.token), { editionId, email: m.email });
+        batch.update(this.responseRef(m.token), { answers: clean(m.answers) });
+      }
+      await batch.commit();
+    }
+    return moves.filter((m) => m.email).length;
+  }
+
   async removeParticipant(editionId: string, p: Participant): Promise<void> {
     const batch = writeBatch(this.db);
+    await this.releaseAccount(batch, p.token);
+    batch.delete(this.contactRef(p.token));
+    batch.delete(this.arcadeRef(p.token));
     batch.delete(this.participantRef(editionId, p.id));
     batch.delete(this.inviteRef(p.token));
     batch.delete(this.responseRef(p.token));
@@ -319,11 +475,17 @@ export class FirestoreRepo implements PublicRepo, AdminRepo, MoneyRepo {
 
   async regenerateToken(editionId: string, p: Participant): Promise<void> {
     const token = generateToken();
-    const old = await getDoc(this.responseRef(p.token));
+    const [old, contact, arcade] = await Promise.all([getDoc(this.responseRef(p.token)), getDoc(this.contactRef(p.token)), getDoc(this.arcadeRef(p.token))]);
     const batch = writeBatch(this.db);
+    // l'enllaç nou neix lliure: s'haurà de tornar a reclamar (serveix si l'antic s'ha filtrat)
+    await this.releaseAccount(batch, p.token);
     batch.update(this.participantRef(editionId, p.id), { token });
     batch.set(this.inviteRef(token), { editionId, displayName: p.name });
     if (old.exists()) batch.set(this.responseRef(token), old.data());
+    if (contact.exists()) batch.set(this.contactRef(token), contact.data());
+    if (arcade.exists()) batch.set(this.arcadeRef(token), arcade.data());
+    batch.delete(this.contactRef(p.token));
+    batch.delete(this.arcadeRef(p.token));
     batch.delete(this.inviteRef(p.token));
     batch.delete(this.responseRef(p.token));
     batch.delete(this.revealRef(p.token));
