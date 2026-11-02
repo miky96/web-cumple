@@ -67,6 +67,13 @@ describe('marques del qüestionari', () => {
     expect(b['tap-race']).toEqual({ answer: { taps: 35, durationMs: 5000 }, score: -35, at: 100 });
   });
 
+  it('també compta resultats de passos que ja no són al qüestionari (pel tipus de resultat)', () => {
+    const b = boardFromAnswers(steps, { vell: { levelReached: 4, levels: 5 }, altre: { guess: 8, actual: 8 }, txt: 'hola', p: { nickname: 'M' } }, 5);
+    expect(b['memory-sequence']?.score).toBe(-4);
+    expect(b['count-characters']?.score).toBe(0);
+    expect(Object.keys(b)).toHaveLength(2);
+  });
+
   it('combinar: es queda la millor de cada joc, i en empat la més antiga', () => {
     const quiz = boardFromAnswers(steps, { t1: { taps: 35, durationMs: 5000 }, s: { targetMs: 5000, elapsedMs: 5100, deltaMs: 100 } }, 100);
     const arcade: ArcadeBoard = { 'tap-race': { answer: { taps: 40, durationMs: 5000 }, score: -40, at: 200 }, 'stop-the-clock': { answer: {}, score: 100, at: 50 } };

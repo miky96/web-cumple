@@ -78,10 +78,24 @@ export function ArcadeView({ repo, token, editionId, quizSteps, ctx, uid, leader
   const [mode, setMode] = useState<Mode>({ kind: 'menu' });
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<LeaderboardRow[] | null>(null);
-  const [hsGame, setHsGame] = useState<ArcadeGame>('stop-the-clock');
+  const [pickedGame, setHsGame] = useState<ArcadeGame | null>(null);
   const rankings = useMemo(() => arcadeRankings((rows ?? []).map((r) => ({ id: r.uid, name: r.name, board: r.board }))), [rows]);
+  // Per defecte, la primera pestanya que tingui marques (no una de buida)
+  const hsGame = pickedGame ?? rankings.find((r) => r.entries.length > 0)?.game ?? 'stop-the-clock';
 
-  useEffect(() => repo.watchLeaderboard(editionId, setRows), [repo, editionId]);
+  const [hsError, setHsError] = useState(false);
+  useEffect(
+    () =>
+      repo.watchLeaderboard(
+        editionId,
+        (r) => {
+          setRows(r);
+          setHsError(false);
+        },
+        () => setHsError(true),
+      ),
+    [repo, editionId],
+  );
 
   // Si tens marques però no surts al leaderboard (p. ex. t'han regenerat l'enllaç), et tornem a publicar un cop.
   const synced = useRef(false);
@@ -221,6 +235,7 @@ export function ArcadeView({ repo, token, editionId, quizSteps, ctx, uid, leader
           </div>
         )}
         {rows && <Leaderboard rankings={rankings} uid={uid} game={hsGame} onGame={setHsGame} />}
+        {hsError && !rows && <p className="error-text center">No s'ha pogut carregar el leaderboard. Torna-ho a provar d'aquí una estona.</p>}
         <p className="insert-coin blink center" aria-hidden>
           Insert coin
         </p>

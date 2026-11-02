@@ -68,7 +68,7 @@ export interface PublicRepo extends AuthRepo {
    */
   saveArcade(token: string, editionId: string, board: ArcadeBoard, leaderboardName: string | null): Promise<void>;
   /** Leaderboard de la sala (només per a comptes amb un enllaç vinculat). */
-  watchLeaderboard(editionId: string, cb: (rows: LeaderboardRow[]) => void): Unsubscribe;
+  watchLeaderboard(editionId: string, cb: (rows: LeaderboardRow[]) => void, onError?: (e: Error) => void): Unsubscribe;
   getInvite(token: string): Promise<Invite | null>;
   getPublicEdition(editionId: string): Promise<PublicEdition | null>;
   getResponse(token: string): Promise<QuizResponse | null>;

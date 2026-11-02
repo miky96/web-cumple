@@ -61,13 +61,31 @@ export function mergeBoards(a: ArcadeBoard, b: ArcadeBoard): ArcadeBoard {
   return out;
 }
 
-/** Marques que surten dels minijocs del qüestionari (si un joc hi surt dos cops, la millor). */
+/** Endevina de quin minijoc és un resultat per la seva forma (per a passos que ja no existeixen al qüestionari). */
+export function inferGame(raw: unknown): ArcadeGame | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const has = (k: string) => k in raw;
+  if (has('deltaMs') && has('elapsedMs')) return 'stop-the-clock';
+  if (has('guess') && has('actual')) return 'count-characters';
+  if (has('taps')) return 'tap-race';
+  if (has('levelReached')) return 'memory-sequence';
+  return null;
+}
+
+/**
+ * Marques que surten dels minijocs del qüestionari (si un joc hi surt dos cops, la millor).
+ * Mira totes les respostes, no només els passos actuals: si s'ha editat el qüestionari després
+ * que algú contestés (passos esborrats o recreats amb un altre id), el joc es dedueix de la forma del resultat.
+ */
 export function boardFromAnswers(quizSteps: readonly QuizStep[], answers: Answers, completedAt: number | null): ArcadeBoard {
+  const typeById = new Map(quizSteps.map((s) => [s.id, s.type]));
   let board: ArcadeBoard = {};
-  for (const s of quizSteps) {
-    if (!isArcadeGame(s.type) || !(s.id in answers)) continue;
-    const sc = minigameScore(s.type, answers[s.id]);
-    if (sc) board = mergeBoards(board, { [s.type]: { answer: answers[s.id], score: sc.score, at: completedAt ?? 0 } });
+  for (const [id, raw] of Object.entries(answers)) {
+    const t = typeById.get(id);
+    const game = t ? (isArcadeGame(t) ? t : null) : inferGame(raw);
+    if (!game) continue;
+    const sc = minigameScore(game, raw);
+    if (sc) board = mergeBoards(board, { [game]: { answer: raw, score: sc.score, at: completedAt ?? 0 } });
   }
   return board;
 }

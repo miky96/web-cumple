@@ -256,11 +256,14 @@ export class FirestoreRepo implements PublicRepo, AdminRepo, MoneyRepo {
     await batch.commit();
   }
 
-  watchLeaderboard(editionId: string, cb: (rows: LeaderboardRow[]) => void): Unsubscribe {
+  watchLeaderboard(editionId: string, cb: (rows: LeaderboardRow[]) => void, onError?: (e: Error) => void): Unsubscribe {
     return onSnapshot(
       query(collection(this.db, 'leaderboard'), where('editionId', '==', editionId)),
       (qs) => cb(qs.docs.map((d) => ({ uid: d.id, name: d.data().name ?? '', board: (d.data().scores ?? {}) as ArcadeBoard }))),
-      (e) => console.warn('No es pot llegir el leaderboard', e),
+      (e) => {
+        console.warn('No es pot llegir el leaderboard', e);
+        onError?.(e);
+      },
     );
   }
 
